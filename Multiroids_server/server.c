@@ -3,12 +3,11 @@
 #include <SDL.h>
 #include <WinSock2.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 #define BUFLEN 64
 #define PORT 8888
 
-bool initializeSockets();
+int initializeSockets();
 void shutdownSockets();
 
 int main(int argc, char* argv[])
@@ -16,7 +15,7 @@ int main(int argc, char* argv[])
 	(void)argc;
 	(void)argv;
 
-	if (initializeSockets() == false)
+	if (initializeSockets() == 0)
 	{
 		printf("Failed to initialize sockets.");
 		return 0;
@@ -35,13 +34,13 @@ int main(int argc, char* argv[])
 	addr_server.sin_port = htons(PORT);
 	bind(s, (struct sockaddr*)&addr_server, sizeof(addr_server));
 
-	bool running = true;
+	int running = 1;
 	DWORD nonBlocking = 1;
 
 	if (ioctlsocket(s, FIONBIO, &nonBlocking) != 0)
 	{
 		printf("Failed to set non-blocking!\n");
-		running = false;
+		running = 0;
 	}
 
 	while (running)
@@ -85,7 +84,7 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-bool initializeSockets()
+int initializeSockets()
 {
 	WSADATA WsaData;
 	return WSAStartup(MAKEWORD(2, 2), &WsaData) == NO_ERROR;

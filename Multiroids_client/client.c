@@ -3,24 +3,31 @@
 #include <SDL.h>
 #include <WinSock2.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 #define SERVER "127.0.0.1"
 #define BUFLEN 64
 #define PORT 8888
 
-bool initializeSockets();
+typedef struct shape_t
+{
+    SDL_Point* points;
+    size_t count;
+} shape_t;
+
+int initializeSockets();
 void shutdownSockets();
 
+void rotate_shape(const shape_t* const source, shape_t* const dest, float angle, SDL_Point pivot);
+
 const int WINDOW_WIDTH = 640;
-const int WINDOW_HEIGHT = 360;
+const int WINDOW_HEIGHT = 480;
 
 int main(int argc, char* argv[])
 {
 	(void)argc;
 	(void)argv;
 
-	if (initializeSockets() == false)
+	if (initializeSockets() == 0)
 	{
 		printf("Failed to initialize sockets.");
 		return 0;
@@ -70,10 +77,29 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+    size_t count = 5;
+
+    shape_t ship;
+    ship.count = count;
+    ship.points = malloc(sizeof(SDL_Point) * count);
+    ship.points[0].x = 32; ship.points[0].y = 96;
+    ship.points[1].x = 64; ship.points[1].y = 32;
+    ship.points[2].x = 96; ship.points[2].y = 96;
+    ship.points[3].x = 64; ship.points[3].y = 80;
+    ship.points[4].x = 32; ship.points[4].y = 96;
+
+    shape_t rotated;
+    rotated.count = count;
+    rotated.points = malloc(sizeof(SDL_Point) * count);
+
+    float angle = 0.0f;
+
+    SDL_Point anchor = { 64, 64 };
+
 	//----------------------------------------------------
 
 	SDL_Event polled_event;
-	bool running = true;
+	int running = 1;
 
 	SOCKET s;
 	struct sockaddr_in addr_server;
@@ -93,24 +119,19 @@ int main(int argc, char* argv[])
 	if (ioctlsocket(s, FIONBIO, &nonBlocking) != 0)
 	{
 		printf("Failed to set non-blocking!\n");
-		running = false;
+		running = 0;
 	}
 
 	while (running)
 	{
+        memset(msg_buf, 0, BUFLEN);
+
 		while (SDL_PollEvent(&polled_event))
 		{
-			SDL_RenderClear(renderer);
-			SDL_RenderCopy(renderer, texture, NULL, NULL);
-			SDL_RenderPresent(renderer);
-
-			memset(msg_buf, 0, BUFLEN);
-
 			if (polled_event.type == SDL_QUIT)
 			{
-				running = false;
+				running = 0;
 			}
-
 			else if (polled_event.type == SDL_KEYDOWN)
 			{
 				switch (polled_event.key.keysym.sym)
@@ -131,23 +152,38 @@ int main(int argc, char* argv[])
 					msg_buf[0] = 4;
 					printf("D ");
 					break;
+                case SDLK_ESCAPE:
+                    running = 0;
+                    break;
 				}
 			}
-
-			if (msg_buf[0] != 0)
-			{
-				sendto(s, msg_buf, BUFLEN, 0, (struct sockaddr*)&addr_server, slen);
-
-				printf("Sending to %s:%d\n", inet_ntoa(addr_server.sin_addr), ntohs(addr_server.sin_port));
-
-				memset(recv_buf, 0, BUFLEN);
-				recvfrom(s, recv_buf, BUFLEN, 0, (struct sockaddr*)&addr_server, &slen);
-
-				Sleep(50);
-
-				printf("Server is receiving data!\n");
-			}
 		}
+
+        rotate_shape(&ship, &rotated, angle, anchor);
+
+        angle += 0.025f;
+
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, texture, NULL, NULL);
+
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        SDL_RenderDrawLines(renderer, rotated.points, (int)rotated.count);
+
+        SDL_RenderPresent(renderer);
+
+        if (msg_buf[0] != 0)
+        {
+            sendto(s, msg_buf, BUFLEN, 0, (struct sockaddr*)&addr_server, slen);
+
+            printf("Sending to %s:%d\n", inet_ntoa(addr_server.sin_addr), ntohs(addr_server.sin_port));
+
+            memset(recv_buf, 0, BUFLEN);
+            recvfrom(s, recv_buf, BUFLEN, 0, (struct sockaddr*)&addr_server, &slen);
+
+            Sleep(50);
+
+            printf("Server is receiving data!\n");
+        }
 	}
 
 	SDL_DestroyTexture(texture);
@@ -155,12 +191,15 @@ int main(int argc, char* argv[])
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 
+    free(ship.points);
+    free(rotated.points);
+
 	closesocket(s);
 	shutdownSockets();
 	return 0;
 }
 
-bool initializeSockets()
+int initializeSockets()
 {
 	WSADATA WsaData;
 	return WSAStartup(MAKEWORD(2, 2), &WsaData) == NO_ERROR;
@@ -169,4 +208,25 @@ bool initializeSockets()
 void shutdownSockets()
 {
 	WSACleanup();
+}
+
+void rotate_shape(const shape_t* const source, shape_t* const dest, float angle, SDL_Point pivot)
+{
+    float s = sinf(angle);
+    float c = cosf(angle);
+    float x = 0;
+    float y = 0;
+
+    for (size_t i = 0; i < source->count; i++)
+    {
+        dest->points[i] = source->points[i];
+        dest->points[i].x -= pivot.x;
+        dest->points[i].y -= pivot.y;
+
+        x = dest->points[i].x * c - dest->points[i].y * s;
+        y = dest->points[i].x * s + dest->points[i].y * c;
+
+        dest->points[i].x = (int)x + pivot.x;
+        dest->points[i].y = (int)y + pivot.y;
+    }
 }
