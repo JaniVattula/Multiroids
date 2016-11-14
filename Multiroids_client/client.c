@@ -3,21 +3,45 @@
 #include <SDL.h>
 #include <WinSock2.h>
 #include <stdio.h>
+#include <math.h>
 
 #define SERVER "127.0.0.1"
 #define BUFLEN 64
 #define PORT 8888
 
-typedef struct shape_t
+#define MAX_POINTS 8
+#define MAX_PLAYERS 4
+
+float to_rad(float deg)
 {
-    SDL_Point* points;
+    return deg * (float)M_PI / 180.0f;
+}
+
+float to_deg(float rad)
+{
+    return rad * 180.0f / (float)M_PI;
+}
+
+typedef struct point_t
+{
+    float x;
+    float y;
+} point_t;
+
+typedef struct sprite_t
+{
+    point_t position;
+    point_t size;
+    point_t points[MAX_POINTS];
     size_t count;
-} shape_t;
+    float angle;
+} sprite_t;
 
 int initializeSockets();
 void shutdownSockets();
 
-void rotate_shape(const shape_t* const source, shape_t* const dest, float angle, SDL_Point pivot);
+void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, size_t count);
+sprite_t create_ship(float x, float y, float width, float height, float angle);
 
 const int WINDOW_WIDTH = 640;
 const int WINDOW_HEIGHT = 480;
@@ -77,24 +101,12 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-    size_t count = 5;
 
-    shape_t ship;
-    ship.count = count;
-    ship.points = malloc(sizeof(SDL_Point) * count);
-    ship.points[0].x = 32; ship.points[0].y = 96;
-    ship.points[1].x = 64; ship.points[1].y = 32;
-    ship.points[2].x = 96; ship.points[2].y = 96;
-    ship.points[3].x = 64; ship.points[3].y = 80;
-    ship.points[4].x = 32; ship.points[4].y = 96;
-
-    shape_t rotated;
-    rotated.count = count;
-    rotated.points = malloc(sizeof(SDL_Point) * count);
-
-    float angle = 0.0f;
-
-    SDL_Point anchor = { 64, 64 };
+    sprite_t players[MAX_PLAYERS];
+    players[0] = create_ship(128.0f, 128.0f, 64.0f, 64.0f, to_rad(45.0f));
+    players[1] = create_ship(512.0f, 32.0f, 32.0f, 32.0f, 0.0f);
+    players[2] = create_ship(128.0f, 256.0f, 128.0f, 128.0f, to_rad(45.0f));
+    players[3] = create_ship(256.0f, 256.0f, 64.0f, 64.0f, to_rad(180.0f));
 
 	//----------------------------------------------------
 
@@ -122,6 +134,8 @@ int main(int argc, char* argv[])
 		running = 0;
 	}
 
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+
 	while (running)
 	{
         memset(msg_buf, 0, BUFLEN);
@@ -146,10 +160,12 @@ int main(int argc, char* argv[])
 					break;
 				case SDLK_a:
 					msg_buf[0] = 3;
+                    players[1].angle -= to_rad(45);
 					printf("A ");
 					break;
 				case SDLK_d:
 					msg_buf[0] = 4;
+                    players[1].angle += to_rad(45.0f);
 					printf("D ");
 					break;
                 case SDLK_ESCAPE:
@@ -159,15 +175,12 @@ int main(int argc, char* argv[])
 			}
 		}
 
-        rotate_shape(&ship, &rotated, angle, anchor);
-
-        angle += 0.025f;
+        players[0].angle += 0.025f;
 
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, NULL, NULL);
 
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        SDL_RenderDrawLines(renderer, rotated.points, (int)rotated.count);
+        render_sprites(renderer, players, MAX_PLAYERS);
 
         SDL_RenderPresent(renderer);
 
@@ -191,9 +204,6 @@ int main(int argc, char* argv[])
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 
-    free(ship.points);
-    free(rotated.points);
-
 	closesocket(s);
 	shutdownSockets();
 	return 0;
@@ -210,23 +220,48 @@ void shutdownSockets()
 	WSACleanup();
 }
 
-void rotate_shape(const shape_t* const source, shape_t* const dest, float angle, SDL_Point pivot)
+void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, size_t count)
 {
-    float s = sinf(angle);
-    float c = cosf(angle);
-    float x = 0;
-    float y = 0;
+    static SDL_Point points[MAX_POINTS];
 
-    for (size_t i = 0; i < source->count; i++)
+    for (size_t i = 0; i < count; i++)
     {
-        dest->points[i] = source->points[i];
-        dest->points[i].x -= pivot.x;
-        dest->points[i].y -= pivot.y;
+        float s = sinf(sprites[i].angle);
+        float c = cosf(sprites[i].angle);
+        float x = 0;
+        float y = 0;
 
-        x = dest->points[i].x * c - dest->points[i].y * s;
-        y = dest->points[i].x * s + dest->points[i].y * c;
+        for (size_t j = 0; j < sprites[i].count; j++)
+        {
+            x = sprites[i].points[j].x * c - sprites[i].points[j].y * s;
+            y = sprites[i].points[j].x * s + sprites[i].points[j].y * c;
 
-        dest->points[i].x = (int)x + pivot.x;
-        dest->points[i].y = (int)y + pivot.y;
+            x *= sprites[i].size.x;
+            y *= sprites[i].size.y;
+
+            points[j].x = (int)(x + sprites[i].position.x);
+            points[j].y = (int)(y + sprites[i].position.y);
+        }
+
+        SDL_RenderDrawLines(renderer, points, (int)sprites[i].count);
     }
+}
+
+sprite_t create_ship(float x, float y, float width, float height, float angle)
+{
+    sprite_t ship;
+    ship.angle = angle;
+    ship.count = 5;
+    ship.position.x = x;
+    ship.position.y = y;
+    ship.size.x = width;
+    ship.size.y = height;
+
+    ship.points[0].x = -0.5f;   ship.points[0].y = 0.5f;
+    ship.points[1].x = 0.0f;    ship.points[1].y = -0.5f;
+    ship.points[2].x = 0.5f;    ship.points[2].y = 0.5f;
+    ship.points[3].x = 0.0f;    ship.points[3].y = 0.25f;
+    ship.points[4].x = -0.5f;   ship.points[4].y = 0.5f;
+
+    return ship;
 }
