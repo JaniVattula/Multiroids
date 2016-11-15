@@ -10,7 +10,9 @@
 #define PORT 8888
 
 #define MAX_POINTS 8
-#define MAX_PLAYERS 4
+#define MAX_SPRITES 256
+
+int current_sprite = 0;
 
 float to_rad(float deg)
 {
@@ -35,13 +37,20 @@ typedef struct sprite_t
     point_t points[MAX_POINTS];
     size_t count;
     float angle;
+    int alive;
 } sprite_t;
+
+sprite_t sprites[MAX_SPRITES];
 
 int initializeSockets();
 void shutdownSockets();
 
+sprite_t* create_sprite();
+void delete_sprite(sprite_t* sprite);
+
+void init_sprites();
 void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, size_t count);
-sprite_t create_ship(float x, float y, float width, float height, float angle);
+sprite_t* create_ship(float x, float y, float width, float height, float angle);
 
 const int WINDOW_WIDTH = 640;
 const int WINDOW_HEIGHT = 480;
@@ -101,8 +110,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-
-    sprite_t players[MAX_PLAYERS];
+    sprite_t* players[4];
     players[0] = create_ship(128.0f, 128.0f, 64.0f, 64.0f, to_rad(45.0f));
     players[1] = create_ship(512.0f, 32.0f, 32.0f, 32.0f, 0.0f);
     players[2] = create_ship(128.0f, 256.0f, 128.0f, 128.0f, to_rad(45.0f));
@@ -160,14 +168,17 @@ int main(int argc, char* argv[])
 					break;
 				case SDLK_a:
 					msg_buf[0] = 3;
-                    players[1].angle -= to_rad(45);
+                    players[1]->angle -= to_rad(45);
 					printf("A ");
 					break;
 				case SDLK_d:
 					msg_buf[0] = 4;
-                    players[1].angle += to_rad(45.0f);
+                    players[1]->angle += to_rad(45.0f);
 					printf("D ");
 					break;
+                case SDLK_f:
+                    delete_sprite(players[3]);
+                    break;
                 case SDLK_ESCAPE:
                     running = 0;
                     break;
@@ -175,12 +186,12 @@ int main(int argc, char* argv[])
 			}
 		}
 
-        players[0].angle += 0.025f;
+        players[0]->angle += 0.025f;
 
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, NULL, NULL);
 
-        render_sprites(renderer, players, MAX_PLAYERS);
+        render_sprites(renderer, sprites, MAX_SPRITES);
 
         SDL_RenderPresent(renderer);
 
@@ -220,12 +231,43 @@ void shutdownSockets()
 	WSACleanup();
 }
 
+sprite_t* create_sprite()
+{
+    for (size_t i = 0; i < MAX_SPRITES; i++)
+    {
+        if (sprites[i].alive == 0)
+        {
+            sprites[i].alive = 1;
+            
+            return &sprites[i];
+        }
+    }
+
+    return NULL;
+}
+
+void delete_sprite(sprite_t* sprite)
+{
+    sprite->alive = 0;
+}
+
+void init_sprites()
+{
+    for (size_t i = 0; i < MAX_SPRITES; i++)
+    {
+        sprites[i].alive = 0;
+    }
+}
+
 void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, size_t count)
 {
     static SDL_Point points[MAX_POINTS];
 
     for (size_t i = 0; i < count; i++)
     {
+        if (sprites[i].alive == 0)
+            continue;
+
         float s = sinf(sprites[i].angle);
         float c = cosf(sprites[i].angle);
         float x = 0;
@@ -247,21 +289,25 @@ void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, size_t count)
     }
 }
 
-sprite_t create_ship(float x, float y, float width, float height, float angle)
+sprite_t* create_ship(float x, float y, float width, float height, float angle)
 {
-    sprite_t ship;
-    ship.angle = angle;
-    ship.count = 5;
-    ship.position.x = x;
-    ship.position.y = y;
-    ship.size.x = width;
-    ship.size.y = height;
+    sprite_t* sprite = create_sprite();
 
-    ship.points[0].x = -0.5f;   ship.points[0].y = 0.5f;
-    ship.points[1].x = 0.0f;    ship.points[1].y = -0.5f;
-    ship.points[2].x = 0.5f;    ship.points[2].y = 0.5f;
-    ship.points[3].x = 0.0f;    ship.points[3].y = 0.25f;
-    ship.points[4].x = -0.5f;   ship.points[4].y = 0.5f;
+    if (sprite)
+    {
+        sprite->angle = angle;
+        sprite->count = 5;
+        sprite->position.x = x;
+        sprite->position.y = y;
+        sprite->size.x = width;
+        sprite->size.y = height;
 
-    return ship;
+        sprite->points[0].x = -0.5f;   sprite->points[0].y = 0.5f;
+        sprite->points[1].x = 0.0f;    sprite->points[1].y = -0.5f;
+        sprite->points[2].x = 0.5f;    sprite->points[2].y = 0.5f;
+        sprite->points[3].x = 0.0f;    sprite->points[3].y = 0.25f;
+        sprite->points[4].x = -0.5f;   sprite->points[4].y = 0.5f;
+    }
+
+    return sprite;
 }
