@@ -17,7 +17,7 @@
 #define MAX_PLAYERS 4
 #define MAX_ASTEROIDS 32
 #define MAX_BULLETS 256
-#define MAX_SPEED 2
+#define MAX_SPEED 4
 
 int turn_left = 0;
 int turn_right = 0;
@@ -156,47 +156,51 @@ int main(int argc, char* argv[])
 		running = 0;
 	}
 
+    double delta_time = 1 / 60.0;
+    double current_time = SDL_GetTicks() / 1000.0;
+    double accumulator = 0.0;
+
 	while (running)
 	{
         memset(msg_buf, 0, BUFLEN);
 
-		while (SDL_PollEvent(&polled_event))
-		{
-			if (polled_event.type == SDL_QUIT)
-			{
-				running = 0;
-			}
-			else if (polled_event.type == SDL_KEYDOWN)
-			{
-				switch (polled_event.key.keysym.sym)
-				{
-				case SDLK_w:
-					msg_buf[0] = 1;
-					//printf("W ");
+        while (SDL_PollEvent(&polled_event))
+        {
+            if (polled_event.type == SDL_QUIT)
+            {
+                running = 0;
+            }
+            else if (polled_event.type == SDL_KEYDOWN)
+            {
+                switch (polled_event.key.keysym.sym)
+                {
+                case SDLK_w:
+                    msg_buf[0] = 1;
+                    //printf("W ");
                     thrust = 1;
-					break;
-				case SDLK_s:
-					msg_buf[0] = 2;
-					//printf("S ");
-					break;
-				case SDLK_a:
-					msg_buf[0] = 3;
-					//printf("A ");
+                    break;
+                case SDLK_s:
+                    msg_buf[0] = 2;
+                    //printf("S ");
+                    break;
+                case SDLK_a:
+                    msg_buf[0] = 3;
+                    //printf("A ");
                     turn_left = 1;
-					break;
-				case SDLK_d:
-					msg_buf[0] = 4;
-					//printf("D ");
+                    break;
+                case SDLK_d:
+                    msg_buf[0] = 4;
+                    //printf("D ");
                     turn_right = 1;
-					break;
+                    break;
                 case SDLK_f:
                     free_sprite(&players[3]);
                     break;
                 case SDLK_ESCAPE:
                     running = 0;
                     break;
-				}
-			}
+                }
+            }
             else if (polled_event.type == SDL_KEYUP)
             {
                 switch (polled_event.key.keysym.sym)
@@ -212,35 +216,47 @@ int main(int argc, char* argv[])
                     break;
                 }
             }
-		}
-
-        if (turn_right)
-        {
-            players[1].angle += to_rad(1.0f);
         }
 
-        if (turn_left)
+        double new_time = SDL_GetTicks() / 1000.0f;
+        double frame_time = new_time - current_time;
+        current_time = new_time;
+
+        accumulator += frame_time;
+
+        while (accumulator >= delta_time)
         {
-            players[1].angle -= to_rad(1.0f);
-        }
 
-        if (thrust)
-        {
-            players[1].velocity.x += cosf(players[1].angle) * 0.025f;
-            players[1].velocity.y += sinf(players[1].angle) * 0.025f;
-
-            float speed = sqrtf(powf(players[1].velocity.x, 2.0f) + powf(players[1].velocity.y, 2.0f));
-
-            if (speed > MAX_SPEED)
+            if (turn_right)
             {
-                players[1].velocity.x *= MAX_SPEED / speed;
-                players[1].velocity.y *= MAX_SPEED / speed;
+                players[1].angle += 0.1f;
             }
+
+            if (turn_left)
+            {
+                players[1].angle -= 0.1f;
+            }
+
+            if (thrust)
+            {
+                players[1].velocity.x += cosf(players[1].angle) * 0.125f;
+                players[1].velocity.y += sinf(players[1].angle) * 0.125f;
+
+                float speed = sqrtf(powf(players[1].velocity.x, 2.0f) + powf(players[1].velocity.y, 2.0f));
+
+                if (speed > MAX_SPEED)
+                {
+                    players[1].velocity.x *= MAX_SPEED / speed;
+                    players[1].velocity.y *= MAX_SPEED / speed;
+                }
+            }
+
+            players[0].angle += 0.025f;
+
+            translate_sprites(players, MAX_PLAYERS);
+
+            accumulator -= delta_time;
         }
-
-        players[0].angle += 0.025f;
-
-        translate_sprites(players, MAX_PLAYERS);
 
         SDL_RenderClear(renderer);
 
@@ -290,7 +306,7 @@ void shutdownSockets()
 
 sprite_t* get_sprite(sprite_t* sprites, int count)
 {
-    for (size_t i = 0; i < count; i++)
+    for (int i = 0; i < count; i++)
     {
         if (sprites[i].alive == 0)
         {
@@ -318,7 +334,7 @@ void init_sprites()
 
 void translate_sprites(sprite_t* sprites, int count)
 {
-    for (size_t i = 0; i < count; i++)
+    for (int i = 0; i < count; i++)
     {
         if (sprites[i].alive == 0)
             continue;
@@ -332,7 +348,7 @@ void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, int count)
 {
     static SDL_Point points[MAX_POINTS];
 
-    for (size_t i = 0; i < count; i++)
+    for (int i = 0; i < count; i++)
     {
         if (sprites[i].alive == 0)
             continue;
@@ -371,11 +387,11 @@ sprite_t* create_ship(float x, float y, float width, float height, float angle)
         sprite->size.x = width;
         sprite->size.y = height;
 
-        sprite->points[0].x = -0.5f;   sprite->points[0].y = -0.5f;
-        sprite->points[1].x = 0.5f;    sprite->points[1].y = 0.0f;
+        sprite->points[0].x = -0.5f;    sprite->points[0].y = -0.5f;
+        sprite->points[1].x = 0.5f;     sprite->points[1].y = 0.0f;
         sprite->points[2].x = -0.5f;    sprite->points[2].y = 0.5f;
-        sprite->points[3].x = -0.25f;    sprite->points[3].y = 0.0f;
-        sprite->points[4].x = -0.5f;   sprite->points[4].y = -0.5f;
+        sprite->points[3].x = -0.25f;   sprite->points[3].y = 0.0f;
+        sprite->points[4].x = -0.5f;    sprite->points[4].y = -0.5f;
     }
 
     return sprite;
