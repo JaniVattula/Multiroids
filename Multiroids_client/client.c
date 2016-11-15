@@ -1,5 +1,3 @@
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-
 #include <SDL.h>
 #include <WinSock2.h>
 #include <stdio.h>
@@ -11,6 +9,8 @@
 
 const int WINDOW_WIDTH = 640;
 const int WINDOW_HEIGHT = 360;
+
+ENetPeer* connectToHost(ENetHost* client);
 
 int main(int argc, char* argv[])
 {
@@ -31,6 +31,7 @@ int main(int argc, char* argv[])
 	SDL_FreeSurface(bmp);
 
 	SDL_Event polled_event;
+	ENetPacket* packet;
 	bool running = true;
 
 	ENetHost* client;
@@ -42,6 +43,11 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	ENetPeer* peer;
+	peer = connectToHost(client);
+
+	ENetEvent net_event;
+
 	while (running)
 	{
 		while (SDL_PollEvent(&polled_event))
@@ -49,6 +55,28 @@ int main(int argc, char* argv[])
 			SDL_RenderClear(renderer);
 			SDL_RenderCopy(renderer, texture, NULL, NULL);
 			SDL_RenderPresent(renderer);
+
+			packet = enet_packet_create("Packet data WOO!", 18, 0);
+
+			while (enet_host_service(client, &net_event, 0) > 0)
+			{
+				printf("Listening to incoming connections.\n");
+				switch (net_event.type)
+				{
+				case ENET_EVENT_TYPE_CONNECT:
+					printf("A new client connected from %x:%u\n", net_event.peer->address.host, net_event.peer->address.port);
+					net_event.peer->data = "Player 1";
+					break;
+				case ENET_EVENT_TYPE_RECEIVE:
+					printf("A packet was received!\nSize: %u\nData: %s\n From: %s\nChannel: %u\n\n", (uint32_t)net_event.packet->dataLength, (char*)net_event.packet->data, (char*)net_event.peer->data, net_event.channelID);
+					enet_packet_destroy(net_event.packet);
+					break;
+				case ENET_EVENT_TYPE_DISCONNECT:
+					printf("%s disconnected.\n", (char*)net_event.peer->data);
+					net_event.peer->data = NULL;
+					break;
+				}
+			}
 
 			if (polled_event.type == SDL_QUIT)
 			{
@@ -60,7 +88,8 @@ int main(int argc, char* argv[])
 				switch (polled_event.key.keysym.sym)
 				{
 				case SDLK_w:
-					printf("W ");
+					enet_peer_send(peer, 0, packet);
+					printf("Sending packet to %x:%u\n", peer->address.host, peer->address.port);
 					break;
 				case SDLK_s:
 					printf("S ");
@@ -85,4 +114,36 @@ int main(int argc, char* argv[])
 	SDL_Quit();
 
 	return 0;
+}
+
+ENetPeer* connectToHost(ENetHost* client)
+{
+	ENetAddress address;
+	ENetEvent net_event;
+	ENetPeer* peer;
+
+	enet_address_set_host(&address, SERVER);
+	address.port = PORT;
+
+	peer = enet_host_connect(client, &address, 2, 0);
+
+	if (peer == NULL)
+	{
+		printf("No available peers for connection.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (enet_host_service(client, &net_event, 5000) > 0 && net_event.type == ENET_EVENT_TYPE_CONNECT)
+	{
+		printf("Connection to %x:%d established.\n", peer->address.host, peer->address.port);
+	}
+
+	else
+	{
+		enet_peer_reset(peer);
+		printf("Connection to %s:%d failed.\n", SERVER, PORT);
+		exit(EXIT_FAILURE);
+	}
+
+	return peer;
 }
