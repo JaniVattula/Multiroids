@@ -4,94 +4,66 @@
 #include <WinSock2.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <enet\enet.h>
 
-#define BUFLEN 64
 #define PORT 8888
-
-bool initializeSockets();
-void shutdownSockets();
 
 int main(int argc, char* argv[])
 {
 	(void)argc;
 	(void)argv;
 
-	if (initializeSockets() == false)
+	if (enet_initialize() != 0)
 	{
-		printf("Failed to initialize sockets.");
-		return 0;
+		printf("Failed to initialize ENet.\n");
+		exit(EXIT_FAILURE);
 	}
 
-	SOCKET s;
-	struct sockaddr_in addr_server, addr_client;
-	char recv_buf[BUFLEN];
-	int recv_len, slen;
+	//---------------------------------------------
 
-	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	slen = sizeof(addr_client);
+	ENetAddress address;
+	ENetHost* server;
+	ENetEvent net_event;
 
-	addr_server.sin_family = AF_INET;
-	addr_server.sin_addr.s_addr = inet_addr("127.0.0.1");
-	addr_server.sin_port = htons(PORT);
-	bind(s, (struct sockaddr*)&addr_server, sizeof(addr_server));
+	address.host = ENET_HOST_ANY;
+	address.port = PORT;
+
+	// Create the server (host address, number of clients,
+	// number of channels, incoming bandwith, outgoing bandwith).
+	server = enet_host_create(&address, 4, 2, 0, 0);
+
+	if (server == NULL)
+	{
+		printf("Failed to create an ENet server host.\n");
+		exit(EXIT_FAILURE);
+	}
 
 	bool running = true;
-	DWORD nonBlocking = 1;
-
-	if (ioctlsocket(s, FIONBIO, &nonBlocking) != 0)
-	{
-		printf("Failed to set non-blocking!\n");
-		running = false;
-	}
 
 	while (running)
 	{
-		if (recv_buf[0] == 0)
+		while (enet_host_service(server, &net_event, 0) > 0)
 		{
-			printf("Address: %s:%d\nWaiting for data...\n", inet_ntoa(addr_server.sin_addr), PORT);
-			fflush(stdout);
-		}
-		memset(recv_buf, 0, BUFLEN);
-		recv_len = recvfrom(s, recv_buf, BUFLEN, 0, (struct sockaddr*)&addr_client, &slen);
-		
-		printf("%s", recv_buf);
-
-		if (recv_buf[0] != 0)
-		{
-			switch (recv_buf[0])
+			switch (net_event.type)
 			{
-			case 1:
-				printf("Player from %s:%d is moving up!\n", inet_ntoa(addr_client.sin_addr), ntohs(addr_client.sin_port));
+			case ENET_EVENT_TYPE_CONNECT:
+				printf("A new client connected from %x:%u\n", net_event.peer->address.host, net_event.peer->address.port);
+				net_event.peer->data = "Player 1";
 				break;
-			case 2:
-				printf("Player from %s:%d is moving down!\n", inet_ntoa(addr_client.sin_addr), ntohs(addr_client.sin_port));
+			case ENET_EVENT_TYPE_RECEIVE:
+				printf("A packet was received!\nSize: %u\nData: %s\n From: %s\nChannel: %u\n\n", (uint32_t)net_event.packet->dataLength, (char*)net_event.packet->data, (char*)net_event.peer->data, net_event.channelID);
+				enet_packet_destroy(net_event.packet);
 				break;
-			case 3:
-				printf("Player from %s:%d is moving left!\n", inet_ntoa(addr_client.sin_addr), ntohs(addr_client.sin_port));
-				break;
-			case 4:
-				printf("Player from %s:%d is moving right!\n", inet_ntoa(addr_client.sin_addr), ntohs(addr_client.sin_port));
+			case ENET_EVENT_TYPE_DISCONNECT:
+				printf("%s disconnected.\n", (char*)net_event.peer->data);
+				net_event.peer->data = NULL;
 				break;
 			}
 		}
-
-		sendto(s, recv_buf, recv_len, 0, (struct sockaddr*)&addr_client, slen);
-		Sleep(50);
-		system("cls");
 	}
 	
-	closesocket(s);
-	shutdownSockets();
+	enet_host_destroy(server);
+	enet_deinitialize();
+
 	return 0;
-}
-
-bool initializeSockets()
-{
-	WSADATA WsaData;
-	return WSAStartup(MAKEWORD(2, 2), &WsaData) == NO_ERROR;
-}
-
-void shutdownSockets()
-{
-	WSACleanup();
 }
