@@ -9,8 +9,19 @@
 #define BUFLEN 64
 #define PORT 8888
 
+#define PLAYER 0
+#define ASTEROID 1
+#define BULLET 2
+
 #define MAX_POINTS 8
-#define MAX_SPRITES 256
+#define MAX_PLAYERS 4
+#define MAX_ASTEROIDS 32
+#define MAX_BULLETS 256
+#define MAX_SPEED 2
+
+int turn_left = 0;
+int turn_right = 0;
+int thrust = 0;
 
 int current_sprite = 0;
 
@@ -33,6 +44,7 @@ typedef struct point_t
 typedef struct sprite_t
 {
     point_t position;
+    point_t velocity;
     point_t size;
     point_t points[MAX_POINTS];
     size_t count;
@@ -40,16 +52,19 @@ typedef struct sprite_t
     int alive;
 } sprite_t;
 
-sprite_t sprites[MAX_SPRITES];
+sprite_t players[MAX_PLAYERS];
 
 int initializeSockets();
 void shutdownSockets();
 
-sprite_t* create_sprite();
-void delete_sprite(sprite_t* sprite);
+sprite_t* get_sprite(sprite_t* sprites, int count);
+void free_sprite(sprite_t* sprite);
 
 void init_sprites();
-void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, size_t count);
+
+void translate_sprites(sprite_t* sprites, int count);
+void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, int count);
+
 sprite_t* create_ship(float x, float y, float width, float height, float angle);
 
 const int WINDOW_WIDTH = 640;
@@ -110,11 +125,10 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-    sprite_t* players[4];
-    players[0] = create_ship(128.0f, 128.0f, 64.0f, 64.0f, to_rad(45.0f));
-    players[1] = create_ship(512.0f, 32.0f, 32.0f, 32.0f, 0.0f);
-    players[2] = create_ship(128.0f, 256.0f, 128.0f, 128.0f, to_rad(45.0f));
-    players[3] = create_ship(256.0f, 256.0f, 64.0f, 64.0f, to_rad(180.0f));
+    create_ship(128.0f, 128.0f, 64.0f, 64.0f, to_rad(45.0f));
+    create_ship(512.0f, 32.0f, 32.0f, 32.0f, 0.0f);
+    create_ship(128.0f, 256.0f, 128.0f, 128.0f, to_rad(45.0f));
+    create_ship(256.0f, 256.0f, 64.0f, 64.0f, to_rad(180.0f));
 
 	//----------------------------------------------------
 
@@ -142,8 +156,6 @@ int main(int argc, char* argv[])
 		running = 0;
 	}
 
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-
 	while (running)
 	{
         memset(msg_buf, 0, BUFLEN);
@@ -160,53 +172,98 @@ int main(int argc, char* argv[])
 				{
 				case SDLK_w:
 					msg_buf[0] = 1;
-					printf("W ");
+					//printf("W ");
+                    thrust = 1;
 					break;
 				case SDLK_s:
 					msg_buf[0] = 2;
-					printf("S ");
+					//printf("S ");
 					break;
 				case SDLK_a:
 					msg_buf[0] = 3;
-                    players[1]->angle -= to_rad(45);
-					printf("A ");
+					//printf("A ");
+                    turn_left = 1;
 					break;
 				case SDLK_d:
 					msg_buf[0] = 4;
-                    players[1]->angle += to_rad(45.0f);
-					printf("D ");
+					//printf("D ");
+                    turn_right = 1;
 					break;
                 case SDLK_f:
-                    delete_sprite(players[3]);
+                    free_sprite(&players[3]);
                     break;
                 case SDLK_ESCAPE:
                     running = 0;
                     break;
 				}
 			}
+            else if (polled_event.type == SDL_KEYUP)
+            {
+                switch (polled_event.key.keysym.sym)
+                {
+                case SDLK_w:
+                    thrust = 0;
+                    break;
+                case SDLK_a:
+                    turn_left = 0;
+                    break;
+                case SDLK_d:
+                    turn_right = 0;
+                    break;
+                }
+            }
 		}
 
-        players[0]->angle += 0.025f;
+        if (turn_right)
+        {
+            players[1].angle += to_rad(1.0f);
+        }
+
+        if (turn_left)
+        {
+            players[1].angle -= to_rad(1.0f);
+        }
+
+        if (thrust)
+        {
+            players[1].velocity.x += cosf(players[1].angle) * 0.025f;
+            players[1].velocity.y += sinf(players[1].angle) * 0.025f;
+
+            float speed = sqrtf(powf(players[1].velocity.x, 2.0f) + powf(players[1].velocity.y, 2.0f));
+
+            if (speed > MAX_SPEED)
+            {
+                players[1].velocity.x *= MAX_SPEED / speed;
+                players[1].velocity.y *= MAX_SPEED / speed;
+            }
+        }
+
+        players[0].angle += 0.025f;
+
+        translate_sprites(players, MAX_PLAYERS);
 
         SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
 
-        render_sprites(renderer, sprites, MAX_SPRITES);
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+
+        render_sprites(renderer, players, MAX_PLAYERS);
 
         SDL_RenderPresent(renderer);
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
         if (msg_buf[0] != 0)
         {
             sendto(s, msg_buf, BUFLEN, 0, (struct sockaddr*)&addr_server, slen);
 
-            printf("Sending to %s:%d\n", inet_ntoa(addr_server.sin_addr), ntohs(addr_server.sin_port));
+            //printf("Sending to %s:%d\n", inet_ntoa(addr_server.sin_addr), ntohs(addr_server.sin_port));
 
             memset(recv_buf, 0, BUFLEN);
             recvfrom(s, recv_buf, BUFLEN, 0, (struct sockaddr*)&addr_server, &slen);
 
-            Sleep(50);
+            //Sleep(50);
 
-            printf("Server is receiving data!\n");
+            //printf("Server is receiving data!\n");
         }
 	}
 
@@ -231,9 +288,9 @@ void shutdownSockets()
 	WSACleanup();
 }
 
-sprite_t* create_sprite()
+sprite_t* get_sprite(sprite_t* sprites, int count)
 {
-    for (size_t i = 0; i < MAX_SPRITES; i++)
+    for (size_t i = 0; i < count; i++)
     {
         if (sprites[i].alive == 0)
         {
@@ -246,20 +303,32 @@ sprite_t* create_sprite()
     return NULL;
 }
 
-void delete_sprite(sprite_t* sprite)
+void free_sprite(sprite_t* sprite)
 {
     sprite->alive = 0;
 }
 
 void init_sprites()
 {
-    for (size_t i = 0; i < MAX_SPRITES; i++)
+    for (size_t i = 0; i < MAX_PLAYERS; i++)
     {
-        sprites[i].alive = 0;
+        players[i].alive = 0;
     }
 }
 
-void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, size_t count)
+void translate_sprites(sprite_t* sprites, int count)
+{
+    for (size_t i = 0; i < count; i++)
+    {
+        if (sprites[i].alive == 0)
+            continue;
+
+        sprites[i].position.x += sprites[i].velocity.x;
+        sprites[i].position.y += sprites[i].velocity.y;
+    }
+}
+
+void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, int count)
 {
     static SDL_Point points[MAX_POINTS];
 
@@ -291,7 +360,7 @@ void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, size_t count)
 
 sprite_t* create_ship(float x, float y, float width, float height, float angle)
 {
-    sprite_t* sprite = create_sprite();
+    sprite_t* sprite = get_sprite(players, MAX_PLAYERS);
 
     if (sprite)
     {
@@ -302,11 +371,11 @@ sprite_t* create_ship(float x, float y, float width, float height, float angle)
         sprite->size.x = width;
         sprite->size.y = height;
 
-        sprite->points[0].x = -0.5f;   sprite->points[0].y = 0.5f;
-        sprite->points[1].x = 0.0f;    sprite->points[1].y = -0.5f;
-        sprite->points[2].x = 0.5f;    sprite->points[2].y = 0.5f;
-        sprite->points[3].x = 0.0f;    sprite->points[3].y = 0.25f;
-        sprite->points[4].x = -0.5f;   sprite->points[4].y = 0.5f;
+        sprite->points[0].x = -0.5f;   sprite->points[0].y = -0.5f;
+        sprite->points[1].x = 0.5f;    sprite->points[1].y = 0.0f;
+        sprite->points[2].x = -0.5f;    sprite->points[2].y = 0.5f;
+        sprite->points[3].x = -0.25f;    sprite->points[3].y = 0.0f;
+        sprite->points[4].x = -0.5f;   sprite->points[4].y = -0.5f;
     }
 
     return sprite;
