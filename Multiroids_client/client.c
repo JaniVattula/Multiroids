@@ -51,9 +51,6 @@ typedef struct sprite_t
 
 sprite_t players[MAX_PLAYERS];
 
-int initializeSockets();
-void shutdownSockets();
-
 sprite_t* get_sprite(sprite_t* sprites, int count);
 void free_sprite(sprite_t* sprite);
 
@@ -119,35 +116,6 @@ int main(int argc, char* argv[])
 
 	while (running)
 	{
-		while (SDL_PollEvent(&polled_event))
-		{
-			SDL_RenderClear(renderer);
-			SDL_RenderCopy(renderer, texture, NULL, NULL);
-			SDL_RenderPresent(renderer);
-
-			packet = enet_packet_create("Packet data WOO!", 18, 0);
-
-			while (enet_host_service(client, &net_event, 0) > 0)
-			{
-				printf("Listening to incoming connections.\n");
-				switch (net_event.type)
-				{
-				case ENET_EVENT_TYPE_CONNECT:
-					enet_address_get_host_ip(&net_event.peer->address, ip, sizeof(ip));
-					printf("A new client connected from %s:%u\n", ip, net_event.peer->address.port);
-					net_event.peer->data = "Player 1";
-					break;
-				case ENET_EVENT_TYPE_RECEIVE:
-					printf("A packet was received!\nSize: %u\nData: %s\n From: %s\nChannel: %u\n\n", (uint32_t)net_event.packet->dataLength, (char*)net_event.packet->data, (char*)net_event.peer->data, net_event.channelID);
-					enet_packet_destroy(net_event.packet);
-					break;
-				case ENET_EVENT_TYPE_DISCONNECT:
-					printf("%s disconnected.\n", (char*)net_event.peer->data);
-					net_event.peer->data = NULL;
-					break;
-				}
-			}
-
         while (SDL_PollEvent(&polled_event))
         {
             if (polled_event.type == SDL_QUIT)
@@ -159,22 +127,14 @@ int main(int argc, char* argv[])
                 switch (polled_event.key.keysym.sym)
                 {
                 case SDLK_w:
-                    msg_buf[0] = 1;
-                    //printf("W ");
                     thrust = 1;
                     break;
                 case SDLK_s:
-                    msg_buf[0] = 2;
-                    //printf("S ");
                     break;
                 case SDLK_a:
-                    msg_buf[0] = 3;
-                    //printf("A ");
                     turn_left = 1;
                     break;
                 case SDLK_d:
-                    msg_buf[0] = 4;
-                    //printf("D ");
                     turn_right = 1;
                     break;
                 case SDLK_f:
@@ -199,6 +159,33 @@ int main(int argc, char* argv[])
                     turn_right = 0;
                     break;
                 }
+            }
+        }
+
+        packet = enet_packet_create("Packet data WOO!", 18, 0);
+
+        enet_peer_send(peer, 0, packet);
+        enet_address_get_host_ip(&peer->address, ip, sizeof(ip));
+        //printf("Sending packet to %s:%u\n", ip, peer->address.port);
+
+        while (enet_host_service(client, &net_event, 0) > 0)
+        {
+            printf("Listening to incoming connections.\n");
+            switch (net_event.type)
+            {
+            case ENET_EVENT_TYPE_CONNECT:
+                enet_address_get_host_ip(&net_event.peer->address, ip, sizeof(ip));
+                printf("A new client connected from %s:%u\n", ip, net_event.peer->address.port);
+                net_event.peer->data = "Player 1";
+                break;
+            case ENET_EVENT_TYPE_RECEIVE:
+                printf("A packet was received!\nSize: %u\nData: %s\n From: %s\nChannel: %u\n\n", (uint32_t)net_event.packet->dataLength, (char*)net_event.packet->data, (char*)net_event.peer->data, net_event.channelID);
+                enet_packet_destroy(net_event.packet);
+                break;
+            case ENET_EVENT_TYPE_DISCONNECT:
+                printf("%s disconnected.\n", (char*)net_event.peer->data);
+                net_event.peer->data = NULL;
+                break;
             }
         }
 
@@ -243,28 +230,12 @@ int main(int argc, char* argv[])
         }
 
         SDL_RenderClear(renderer);
-
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 
         render_sprites(renderer, players, MAX_PLAYERS);
 
         SDL_RenderPresent(renderer);
-
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-
-        if (msg_buf[0] != 0)
-        {
-            sendto(s, msg_buf, BUFLEN, 0, (struct sockaddr*)&addr_server, slen);
-
-            //printf("Sending to %s:%d\n", inet_ntoa(addr_server.sin_addr), ntohs(addr_server.sin_port));
-
-            memset(recv_buf, 0, BUFLEN);
-            recvfrom(s, recv_buf, BUFLEN, 0, (struct sockaddr*)&addr_server, &slen);
-
-            //Sleep(50);
-
-            //printf("Server is receiving data!\n");
-        }
 	}
 
 	enet_host_destroy(client);
@@ -280,31 +251,35 @@ int main(int argc, char* argv[])
 
 ENetPeer* connectToHost(ENetHost* client)
 {
-	ENetAddress address;
-	ENetEvent net_event;
-	ENetPeer* peer;
-	char ip[256];
+    ENetAddress address;
+    ENetEvent net_event;
+    ENetPeer* peer;
+    char ip[256];
 
-	enet_address_set_host(&address, SERVER);
-	address.port = PORT;
+    enet_address_set_host(&address, SERVER);
+    address.port = PORT;
 
-	peer = enet_host_connect(client, &address, 2, 0);
+    peer = enet_host_connect(client, &address, 2, 0);
 
-	if (peer == NULL)
-	{
-		printf("No available peers for connection.\n");
-		exit(EXIT_FAILURE);
-	}
+    if (peer == NULL)
+    {
+        printf("No available peers for connection.\n");
+        exit(EXIT_FAILURE);
+    }
 
-	if (enet_host_service(client, &net_event, 5000) > 0 && net_event.type == ENET_EVENT_TYPE_CONNECT)
-	{
-		enet_address_get_host_ip(&peer->address, ip, sizeof(ip));
-		printf("Connection to %s:%d established.\n", ip, peer->address.port);
-	}
+    if (enet_host_service(client, &net_event, 5000) > 0 && net_event.type == ENET_EVENT_TYPE_CONNECT)
+    {
+        enet_address_get_host_ip(&peer->address, ip, sizeof(ip));
+        printf("Connection to %s:%d established.\n", ip, peer->address.port);
+    }
+    else
+    {
+        enet_peer_reset(peer);
+        printf("Connection to %s:%d failed.\n", SERVER, PORT);
+        exit(EXIT_FAILURE);
+    }
 
-void shutdownSockets()
-{
-	WSACleanup();
+    return peer;
 }
 
 sprite_t* get_sprite(sprite_t* sprites, int count)
