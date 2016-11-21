@@ -23,7 +23,9 @@ int main(int argc, char* argv[])
 	ENetHost* server;
 	ENetEvent net_event;
 
-	enet_address_set_host(&address, "127.0.0.1");
+	char ip[256];
+
+	enet_address_set_host(&address, ENET_HOST_ANY);
 	address.port = PORT;
 
 	// Create the server (host address, number of clients,
@@ -36,7 +38,8 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Launching new server at %x:%u\n", address.host, address.port);
+	enet_address_get_host_ip(&address, ip, sizeof(ip));
+	printf("Launching new server at %s:%u\n", ip, address.port);
 
 	bool running = true;
 
@@ -48,7 +51,8 @@ int main(int argc, char* argv[])
 			switch (net_event.type)
 			{
 			case ENET_EVENT_TYPE_CONNECT:
-				printf("A new client connected from %x:%u\n", net_event.peer->address.host, net_event.peer->address.port);
+				enet_address_get_host_ip(&net_event.peer->address, ip, sizeof(ip));
+				printf("A new client connected from %s:%u\n", ip, net_event.peer->address.port);
 				net_event.peer->data = "Player 1";
 				break;
 			case ENET_EVENT_TYPE_RECEIVE:
