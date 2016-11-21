@@ -1,7 +1,5 @@
 #include <SDL.h>
-#include <WinSock2.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <enet\enet.h>
 
 #define PORT 8888
@@ -41,7 +39,7 @@ int main(int argc, char* argv[])
 	enet_address_get_host_ip(&address, ip, sizeof(ip));
 	printf("Launching new server at %s:%u\n", ip, address.port);
 
-	bool running = true;
+	int running = 1;
 
 	while (running)
 	{

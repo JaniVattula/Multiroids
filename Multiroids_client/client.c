@@ -1,7 +1,5 @@
 #include <SDL.h>
-#include <WinSock2.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <enet\enet.h>
 
 #define SERVER "172.31.16.47"
@@ -32,7 +30,7 @@ int main(int argc, char* argv[])
 
 	SDL_Event polled_event;
 	ENetPacket* packet;
-	bool running = true;
+	int running = 1;
 
 	ENetHost* client;
 	client = enet_host_create(NULL, 1, 2, 0, 0);
@@ -82,7 +80,7 @@ int main(int argc, char* argv[])
 
 			if (polled_event.type == SDL_QUIT)
 			{
-				running = false;
+				running = 0;
 			}
 
 			else if (polled_event.type == SDL_KEYDOWN)
