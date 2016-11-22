@@ -1,6 +1,5 @@
 #include "sprite.h"
 
-
 sprite_t* get_sprite(sprite_t* sprites, int count)
 {
     for (int i = 0; i < count; i++)
@@ -61,4 +60,35 @@ void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, int count)
 
         SDL_RenderDrawLines(renderer, points, (int)sprites[i].count);
     }
+}
+
+void init_sprites()
+{
+    for (size_t i = 0; i < MAX_PLAYERS; i++)
+    {
+        players[i].alive = 0;
+    }
+}
+
+sprite_t* create_ship(float x, float y, float width, float height, float angle)
+{
+    sprite_t* sprite = get_sprite(players, MAX_PLAYERS);
+
+    if (sprite)
+    {
+        sprite->angle = angle;
+        sprite->count = 5;
+        sprite->position.x = x;
+        sprite->position.y = y;
+        sprite->size.x = width;
+        sprite->size.y = height;
+
+        sprite->points[0].x = -0.5f;    sprite->points[0].y = -0.5f;
+        sprite->points[1].x = 0.5f;     sprite->points[1].y = 0.0f;
+        sprite->points[2].x = -0.5f;    sprite->points[2].y = 0.5f;
+        sprite->points[3].x = -0.25f;   sprite->points[3].y = 0.0f;
+        sprite->points[4].x = -0.5f;    sprite->points[4].y = -0.5f;
+    }
+
+    return sprite;
 }

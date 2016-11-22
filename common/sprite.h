@@ -35,4 +35,7 @@ void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, int count);
 
 sprite_t players[MAX_PLAYERS];
 
+void init_sprites();
+sprite_t* create_ship(float x, float y, float width, float height, float angle);
+
 #endif
