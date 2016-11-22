@@ -7,20 +7,8 @@
 #define SERVER "127.0.0.1"
 #define PORT 8888
 
-#define PLAYER 0
-#define ASTEROID 1
-#define BULLET 2
-
-#define MAX_POINTS 8
-#define MAX_PLAYERS 4
-#define MAX_ASTEROIDS 32
-#define MAX_BULLETS 256
-#define MAX_SPEED 4
-
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
-
-sprite_t players[MAX_PLAYERS];
 
 int turn_left = 0;
 int turn_right = 0;

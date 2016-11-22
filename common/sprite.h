@@ -5,6 +5,11 @@
 
 #define MAX_POINTS 8
 
+#define MAX_PLAYERS 4
+#define MAX_ASTEROIDS 32
+#define MAX_BULLETS 256
+#define MAX_SPEED 4
+
 typedef struct point_t
 {
     float x;
@@ -27,5 +32,7 @@ void free_sprite(sprite_t* sprite);
 
 void translate_sprites(sprite_t* sprites, int count);
 void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, int count);
+
+sprite_t players[MAX_PLAYERS];
 
 #endif

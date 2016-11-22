@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include <stdio.h>
 #include <enet\enet.h>
+#include "sprite.h"
 
 #define PORT 8888
 
@@ -10,6 +11,18 @@ ENetEvent net_event;
 
 char buffer[256];
 int running = 1;
+
+// TODO use bitfields!
+typedef struct player_state_t
+{
+    int index;
+    int turn_left;
+    int turn_right;
+    int thrust;
+} player_state_t;
+
+player_state_t update_players[MAX_PLAYERS];
+int update_count = 0;
 
 void init()
 {
@@ -62,7 +75,36 @@ void receive_packets()
 
 void update()
 {
+    for (int i = 0; i < update_count; i++)
+    {
+        sprite_t* player = &players[update_players[i].index];
 
+        if (update_players[i].turn_right)
+        {
+            player->angle += 0.1f;
+        }
+
+        if (update_players[i].turn_left)
+        {
+            player->angle -= 0.1f;
+        }
+
+        if (update_players[i].thrust)
+        {
+            player->velocity.x += cosf(player->angle) * 0.125f;
+            player->velocity.y += sinf(player->angle) * 0.125f;
+
+            float speed = sqrtf(powf(player->velocity.x, 2.0f) + powf(player->velocity.y, 2.0f));
+
+            if (speed > MAX_SPEED)
+            {
+                player->velocity.x *= MAX_SPEED / speed;
+                player->velocity.y *= MAX_SPEED / speed;
+            }
+        }
+    }
+
+    translate_sprites(players, MAX_PLAYERS);
 }
 
 void send_packets()
