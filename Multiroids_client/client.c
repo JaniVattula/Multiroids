@@ -4,7 +4,7 @@
 #include <math.h>
 #include "sprite.h"
 
-#define SERVER "172.31.16.47"
+#define SERVER "127.0.0.1"
 #define PORT 8888
 
 #define PLAYER 0
