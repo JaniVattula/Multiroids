@@ -6,6 +6,7 @@
 
 #define SERVER "127.0.0.1"
 #define PORT 8888
+#define PACKET_SIZE 4
 
 #define PLAYER 0
 #define ASTEROID 1
@@ -36,6 +37,7 @@ SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 
 char buffer[256];
+char packet_data[PACKET_SIZE];
 
 float to_rad(float deg)
 {
@@ -192,11 +194,22 @@ void poll_events()
 
 void network_stuff()
 {
-    packet = enet_packet_create("Packet data WOO!", 18, 0);
+	packet_data[0] = thrust + '0';
+	packet_data[1] = turn_left + '0';
+	packet_data[2] = turn_right + '0';
+
+    packet = enet_packet_create(packet_data, 4, 0);
 
     enet_peer_send(peer, 0, packet);
     enet_address_get_host_ip(&peer->address, buffer, sizeof(buffer));
-    //printf("Sending packet to %s:%u\n", ip, peer->address.port);
+    printf("Sending packet to %s:%u\nData: %s\n", SERVER, peer->address.port, (char*)packet->data);
+
+	for (int i = 0; i < PACKET_SIZE; i++)
+	{
+		packet_data[i] = packet->data[i];
+	}
+
+	printf("Retrieved data from the packet: %d, %d, %d\n", (int)packet_data[0] - 48, (int)packet_data[1] - 48, (int)packet_data[2] - 48);
 
     while (enet_host_service(client, &net_event, 0) > 0)
     {

@@ -3,12 +3,14 @@
 #include <enet\enet.h>
 
 #define PORT 8888
+#define PACKET_SIZE 4
 
 ENetHost* server = NULL;
 ENetAddress address;
 ENetEvent net_event;
 
 char buffer[256];
+char packet_data[4];
 int running = 1;
 
 void init()
@@ -49,7 +51,11 @@ void receive_packets()
             net_event.peer->data = "Player 1";
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            printf("A packet was received!\nSize: %u\nData: %s\nFrom: %s\nChannel: %u\n\n", (uint32_t)net_event.packet->dataLength, (char*)net_event.packet->data, (char*)net_event.peer->data, net_event.channelID);
+			for (int i = 0; i < PACKET_SIZE; i++)
+			{
+				packet_data[i] = net_event.packet->data[i];
+			}
+            printf("A packet was received!\nSize: %u\nThrust: %d | Left: %d | Right: %d\nFrom: %s\nChannel: %u\n\n", (uint32_t)net_event.packet->dataLength, (int)packet_data[0] - 48, (int)packet_data[1] - 48, (int)packet_data[2] - 48, (char*)net_event.peer->data, net_event.channelID);
             enet_packet_destroy(net_event.packet);
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
