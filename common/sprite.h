@@ -16,6 +16,20 @@ typedef struct point_t
     float y;
 } point_t;
 
+typedef struct input_state_t
+{
+    unsigned char thrust : 1;
+    unsigned char left : 1;
+    unsigned char right : 1;
+} input_state_t;
+
+typedef struct player_state_t
+{
+    point_t position;
+    point_t velocity;
+    float angle;
+} player_state_t;
+
 typedef struct sprite_t
 {
     point_t position;
@@ -37,5 +51,17 @@ sprite_t players[MAX_PLAYERS];
 
 void init_sprites();
 sprite_t* create_ship(float x, float y, float width, float height, float angle);
+
+inline float to_rad(float deg)
+{
+    return deg * (float)M_PI / 180.0f;
+}
+
+inline float to_deg(float rad)
+{
+    return rad * 180.0f / (float)M_PI;
+}
+
+
 
 #endif

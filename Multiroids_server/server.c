@@ -4,14 +4,14 @@
 #include "sprite.h"
 
 #define PORT 8888
-#define PACKET_SIZE 4
 
 ENetHost* server = NULL;
-ENetAddress address;
-ENetEvent net_event;
+ENetPeer* client = NULL;
 
 char buffer[256];
-char packet_data[4];
+
+input_state_t input;
+player_state_t player;
 
 int running = 1;
 
@@ -23,12 +23,12 @@ void init()
         exit(EXIT_FAILURE);
     }
 
+    ENetAddress address;
+
     enet_address_set_host(&address, "127.0.0.1");
     address.port = PORT;
 
-    // Create the server (host address, number of clients,
-    // number of channels, incoming bandwith, outgoing bandwith).
-    server = enet_host_create(&address, 4, 2, 0, 0);
+    server = enet_host_create(&address, 2, 2, 57600 / 4, 14400 / 4);
 
     if (server == NULL)
     {
@@ -38,43 +38,82 @@ void init()
 
     enet_address_get_host_ip(&address, buffer, sizeof(buffer));
     printf("Launching new server at %s:%u\n", buffer, address.port);
+
+    create_ship(128.0f, 128.0f, 64.0f, 64.0f, to_rad(45.0f));
+
+    memset(&input, 0, sizeof(input));
 }
 
 void receive_packets()
 {
+    ENetEvent net_event;
+
     while (enet_host_service(server, &net_event, 0) > 0)
     {
-        printf("Listening to incoming connections.\n");
         switch (net_event.type)
         {
         case ENET_EVENT_TYPE_CONNECT:
             enet_address_get_host_ip(&net_event.peer->address, buffer, sizeof(buffer));
             printf("A new client connected from %s:%u\n", buffer, net_event.peer->address.port);
-            net_event.peer->data = "Player 1";
+            client = net_event.peer;
+            client->data = "Player 1";
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-			for (int i = 0; i < PACKET_SIZE; i++)
-			{
-				packet_data[i] = net_event.packet->data[i];
-			}
-            printf("A packet was received!\nSize: %u\nThrust: %d | Left: %d | Right: %d\nFrom: %s\nChannel: %u\n\n", (uint32_t)net_event.packet->dataLength, (int)packet_data[0] - 48, (int)packet_data[1] - 48, (int)packet_data[2] - 48, (char*)net_event.peer->data, net_event.channelID);
+            memcpy(&input, net_event.packet->data, net_event.packet->dataLength);
+
             enet_packet_destroy(net_event.packet);
+            
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
             printf("%s disconnected.\n", (char*)net_event.peer->data);
             net_event.peer->data = NULL;
+            client = NULL;
             break;
         }
     }
 }
 
 void update()
-{
+{   
+    if (input.right)
+    {
+        players[0].angle += 0.1f;
+    }
+
+    if (input.left)
+    {
+        players[0].angle -= 0.1f;
+    }
+
+    if (input.thrust)
+    {
+        players[0].velocity.x += cosf(players[0].angle) * 0.125f;
+        players[0].velocity.y += sinf(players[0].angle) * 0.125f;
+
+        float speed = sqrtf(powf(players[0].velocity.x, 2.0f) + powf(players[0].velocity.y, 2.0f));
+
+        if (speed > MAX_SPEED)
+        {
+            players[0].velocity.x *= MAX_SPEED / speed;
+            players[0].velocity.y *= MAX_SPEED / speed;
+        }
+    }
+
+    translate_sprites(players, MAX_PLAYERS);
 }
 
 void send_packets()
 {
+    if (client)
+    { 
+        player.angle = players[0].angle;
+        player.position = players[0].position;
+        player.velocity = players[0].velocity;
 
+        ENetPacket* packet = enet_packet_create(&player, sizeof(player), 0);
+
+        enet_host_broadcast(server, 1, packet);
+    }
 }
 
 void deinit()

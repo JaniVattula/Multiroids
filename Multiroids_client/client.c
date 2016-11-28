@@ -6,43 +6,26 @@
 
 #define SERVER "127.0.0.1"
 #define PORT 8888
-#define PACKET_SIZE 4
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
 
-int turn_left = 0;
-int turn_right = 0;
-int thrust = 0;
 int running = 1;
+
+input_state_t input;
 
 ENetHost* client = NULL;
 ENetPeer* peer = NULL;
-ENetPacket* packet = NULL;
-ENetEvent net_event;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 
 char buffer[256];
-char packet_data[PACKET_SIZE];
 
-float to_rad(float deg)
-{
-    return deg * (float)M_PI / 180.0f;
-}
-
-float to_deg(float rad)
-{
-    return rad * 180.0f / (float)M_PI;
-}
-
-ENetPeer* connectToHost(ENetHost* client)
+void connect_to_host()
 {
     ENetAddress address;
     ENetEvent net_event;
-    ENetPeer* peer;
-    char ip[256];
 
     enet_address_set_host(&address, SERVER);
     address.port = PORT;
@@ -57,8 +40,8 @@ ENetPeer* connectToHost(ENetHost* client)
 
     if (enet_host_service(client, &net_event, 5000) > 0 && net_event.type == ENET_EVENT_TYPE_CONNECT)
     {
-        enet_address_get_host_ip(&peer->address, ip, sizeof(ip));
-        printf("Connection to %s:%d established.\n", ip, peer->address.port);
+        enet_address_get_host_ip(&peer->address, buffer, sizeof(buffer));
+        printf("Connection to %s:%d established.\n", buffer, peer->address.port);
     }
     else
     {
@@ -66,8 +49,6 @@ ENetPeer* connectToHost(ENetHost* client)
         printf("Connection to %s:%d failed.\n", SERVER, PORT);
         exit(EXIT_FAILURE);
     }
-
-    return peer;
 }
 
 void init()
@@ -79,13 +60,10 @@ void init()
     }
 
     SDL_Init(SDL_INIT_VIDEO);
-    window = SDL_CreateWindow("Hell no world!", 100, 100, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("Hell no world!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     create_ship(128.0f, 128.0f, 64.0f, 64.0f, to_rad(45.0f));
-    create_ship(512.0f, 32.0f, 32.0f, 32.0f, 0.0f);
-    create_ship(128.0f, 256.0f, 128.0f, 128.0f, to_rad(45.0f));
-    create_ship(256.0f, 256.0f, 64.0f, 64.0f, to_rad(180.0f));
 
     client = enet_host_create(NULL, 1, 2, 0, 0);
 
@@ -95,7 +73,9 @@ void init()
         exit(EXIT_FAILURE);
     }
 
-    peer = connectToHost(client);
+    connect_to_host();
+
+    memset(&input, 0, sizeof(input));
 }
 
 void poll_events()
@@ -113,18 +93,13 @@ void poll_events()
             switch (polled_event.key.keysym.sym)
             {
             case SDLK_w:
-                thrust = 1;
-                break;
-            case SDLK_s:
+                input.thrust = 1;
                 break;
             case SDLK_a:
-                turn_left = 1;
+                input.left = 1;
                 break;
             case SDLK_d:
-                turn_right = 1;
-                break;
-            case SDLK_f:
-                free_sprite(&players[3]);
+                input.right = 1;
                 break;
             case SDLK_ESCAPE:
                 running = 0;
@@ -136,13 +111,13 @@ void poll_events()
             switch (polled_event.key.keysym.sym)
             {
             case SDLK_w:
-                thrust = 0;
+                input.thrust = 0;
                 break;
             case SDLK_a:
-                turn_left = 0;
+                input.left = 0;
                 break;
             case SDLK_d:
-                turn_right = 0;
+                input.right = 0;
                 break;
             }
         }
@@ -151,26 +126,16 @@ void poll_events()
 
 void network_stuff()
 {
-	packet_data[0] = thrust + '0';
-	packet_data[1] = turn_left + '0';
-	packet_data[2] = turn_right + '0';
+    ENetEvent net_event;
 
-    packet = enet_packet_create(packet_data, 4, 0);
+    player_state_t player;
+
+    ENetPacket* packet = enet_packet_create(&input, sizeof(input), 0);
 
     enet_peer_send(peer, 0, packet);
-    enet_address_get_host_ip(&peer->address, buffer, sizeof(buffer));
-    printf("Sending packet to %s:%u\nData: %s\n", SERVER, peer->address.port, (char*)packet->data);
-
-	for (int i = 0; i < PACKET_SIZE; i++)
-	{
-		packet_data[i] = packet->data[i];
-	}
-
-	printf("Retrieved data from the packet: %d, %d, %d\n", (int)packet_data[0] - 48, (int)packet_data[1] - 48, (int)packet_data[2] - 48);
 
     while (enet_host_service(client, &net_event, 0) > 0)
     {
-        printf("Listening to incoming connections.\n");
         switch (net_event.type)
         {
         case ENET_EVENT_TYPE_CONNECT:
@@ -179,8 +144,14 @@ void network_stuff()
             net_event.peer->data = "Player 1";
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            printf("A packet was received!\nSize: %u\nData: %s\n From: %s\nChannel: %u\n\n", (uint32_t)net_event.packet->dataLength, (char*)net_event.packet->data, (char*)net_event.peer->data, net_event.channelID);
+            memcpy(&player, net_event.packet->data, net_event.packet->dataLength);
+
+            players[0].angle = player.angle;
+            players[0].position = player.position;
+            players[0].velocity = player.velocity;
+            
             enet_packet_destroy(net_event.packet);
+
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
             printf("%s disconnected.\n", (char*)net_event.peer->data);
@@ -192,33 +163,6 @@ void network_stuff()
 
 void update()
 {
-    if (turn_right)
-    {
-        players[1].angle += 0.1f;
-    }
-
-    if (turn_left)
-    {
-        players[1].angle -= 0.1f;
-    }
-
-    if (thrust)
-    {
-        players[1].velocity.x += cosf(players[1].angle) * 0.125f;
-        players[1].velocity.y += sinf(players[1].angle) * 0.125f;
-
-        float speed = sqrtf(powf(players[1].velocity.x, 2.0f) + powf(players[1].velocity.y, 2.0f));
-
-        if (speed > MAX_SPEED)
-        {
-            players[1].velocity.x *= MAX_SPEED / speed;
-            players[1].velocity.y *= MAX_SPEED / speed;
-        }
-    }
-
-    players[0].angle += 0.025f;
-
-    translate_sprites(players, MAX_PLAYERS);
 }
 
 void render()
