@@ -23,6 +23,7 @@ typedef struct input_state_t
     unsigned char thrust : 1;
     unsigned char left : 1;
     unsigned char right : 1;
+    unsigned char shoot : 1;
 } input_state_t;
 
 typedef struct player_state_t
@@ -41,8 +42,6 @@ typedef struct world_state_t
 void translate_world(world_state_t* world);
 void render_world(SDL_Renderer* renderer, world_state_t* world);
 
-void init_sprites();
-
 inline float to_rad(float deg)
 {
     return deg * (float)M_PI / 180.0f;
@@ -53,6 +52,6 @@ inline float to_deg(float rad)
     return rad * 180.0f / (float)M_PI;
 }
 
-point_t player_sprite[PLAYER_SPR_POINTS];
-
+extern const point_t player_sprite[PLAYER_SPR_POINTS];
+extern const SDL_Color player_colors[MAX_PLAYERS];
 #endif

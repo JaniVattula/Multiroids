@@ -66,8 +66,6 @@ void init()
 
     client = enet_host_create(NULL, 1, 2, 0, 0);
 
-    init_sprites();
-
     if (client == NULL)
     {
         printf("Failed to create an ENet client host.\n");

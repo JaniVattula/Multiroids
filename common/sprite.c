@@ -27,20 +27,27 @@ void render_world(SDL_Renderer* renderer, world_state_t* world)
             points[j].y = (int)(y + world->players[i].position.y);
         }
 
+        SDL_SetRenderDrawColor(renderer, 
+            player_colors[i].r,
+            player_colors[i].g,
+            player_colors[i].b,
+            player_colors[i].a);
+
         SDL_RenderDrawLines(renderer, points, PLAYER_SPR_POINTS);
     }
 }
 
-void init_sprites()
-{
-    player_sprite[0].x = -PLAYER_SPR_SIZE;
-    player_sprite[0].y = -PLAYER_SPR_SIZE;
-    player_sprite[1].x = PLAYER_SPR_SIZE;
-    player_sprite[1].y = 0.0f;
-    player_sprite[2].x = -PLAYER_SPR_SIZE;
-    player_sprite[2].y = PLAYER_SPR_SIZE;
-    player_sprite[3].x = -PLAYER_SPR_SIZE * 0.5f;
-    player_sprite[3].y = 0.0f;
-    player_sprite[4].x = -PLAYER_SPR_SIZE;
-    player_sprite[4].y = -PLAYER_SPR_SIZE;
-}
+const point_t player_sprite[PLAYER_SPR_POINTS] = {
+    -PLAYER_SPR_SIZE, -PLAYER_SPR_SIZE,
+     PLAYER_SPR_SIZE, 0.0f,
+    -PLAYER_SPR_SIZE,  PLAYER_SPR_SIZE,
+    -PLAYER_SPR_SIZE * 0.5f, 0.0f,
+    -PLAYER_SPR_SIZE, -PLAYER_SPR_SIZE
+};
+
+const SDL_Color player_colors[MAX_PLAYERS] = {
+    255, 0,   0,   255,
+    0,   255, 0,   255,
+    0,   0,   255, 255,
+    255, 0,   255, 255
+};

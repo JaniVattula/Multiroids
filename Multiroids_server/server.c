@@ -39,9 +39,19 @@ void init()
     enet_address_get_host_ip(&address, buffer, sizeof(buffer));
     printf("Launching new server at %s:%u\n", buffer, address.port);
 
-    world_state.player_count = 1;
+    world_state.player_count = 4;
+
     world_state.players[0].position.x = 320.0f;
     world_state.players[0].position.y = 240.0f;
+
+    world_state.players[1].position.x = 64.0f;
+    world_state.players[1].position.y = 240.0f;
+
+    world_state.players[2].position.x = 192.0f;
+    world_state.players[2].position.y = 240.0f;
+
+    world_state.players[3].position.x = 448.0f;
+    world_state.players[3].position.y = 240.0f;
 
     memset(&input, 0, sizeof(input));
 }
@@ -80,6 +90,7 @@ void update()
     for (int i = 0; i < world_state.player_count; i++)
     {
         player_state_t* player = &world_state.players[i];
+
         if (input.right)
         {
             player->angle += 0.1f;
