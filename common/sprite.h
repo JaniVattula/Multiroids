@@ -4,6 +4,8 @@
 #include <SDL.h>
 
 #define MAX_POINTS 8
+#define PLAYER_SPR_SIZE 32
+#define PLAYER_SPR_POINTS 5
 
 #define MAX_PLAYERS 4
 #define MAX_ASTEROIDS 32
@@ -30,27 +32,16 @@ typedef struct player_state_t
     float angle;
 } player_state_t;
 
-typedef struct sprite_t
+typedef struct world_state_t
 {
-    point_t position;
-    point_t velocity;
-    point_t size;
-    point_t points[MAX_POINTS];
-    size_t count;
-    float angle;
-    int alive;
-} sprite_t;
+    player_state_t players[MAX_PLAYERS];
+    char player_count;
+} world_state_t;
 
-sprite_t* get_sprite(sprite_t* sprites, int count);
-void free_sprite(sprite_t* sprite);
-
-void translate_sprites(sprite_t* sprites, int count);
-void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, int count);
-
-sprite_t players[MAX_PLAYERS];
+void translate_world(world_state_t* world);
+void render_world(SDL_Renderer* renderer, world_state_t* world);
 
 void init_sprites();
-sprite_t* create_ship(float x, float y, float width, float height, float angle);
 
 inline float to_rad(float deg)
 {
@@ -62,6 +53,6 @@ inline float to_deg(float rad)
     return rad * 180.0f / (float)M_PI;
 }
 
-
+point_t player_sprite[PLAYER_SPR_POINTS];
 
 #endif

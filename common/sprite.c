@@ -1,94 +1,46 @@
 #include "sprite.h"
 
-sprite_t* get_sprite(sprite_t* sprites, int count)
+void translate_world(world_state_t* world)
 {
-    for (int i = 0; i < count; i++)
+    for (int i = 0; i < world->player_count; i++)
     {
-        if (sprites[i].alive == 0)
-        {
-            sprites[i].alive = 1;
-
-            return &sprites[i];
-        }
-    }
-
-    return NULL;
-}
-
-void free_sprite(sprite_t* sprite)
-{
-    sprite->alive = 0;
-}
-
-void translate_sprites(sprite_t* sprites, int count)
-{
-    for (int i = 0; i < count; i++)
-    {
-        if (sprites[i].alive == 0)
-            continue;
-
-        sprites[i].position.x += sprites[i].velocity.x;
-        sprites[i].position.y += sprites[i].velocity.y;
+        world->players[i].position.x += world->players[i].velocity.x;
+        world->players[i].position.y += world->players[i].velocity.y;
     }
 }
 
-void render_sprites(SDL_Renderer* renderer, sprite_t* sprites, int count)
+void render_world(SDL_Renderer* renderer, world_state_t* world)
 {
-    static SDL_Point points[MAX_POINTS];
-
-    for (int i = 0; i < count; i++)
+    for (int i = 0; i < world->player_count; i++)
     {
-        if (sprites[i].alive == 0)
-            continue;
+        static SDL_Point points[PLAYER_SPR_POINTS];
 
-        float s = sinf(sprites[i].angle);
-        float c = cosf(sprites[i].angle);
-        float x = 0;
-        float y = 0;
+        float s = sinf(world->players[i].angle);
+        float c = cosf(world->players[i].angle);
 
-        for (size_t j = 0; j < sprites[i].count; j++)
+        for (int j = 0; j < PLAYER_SPR_POINTS; j++)
         {
-            x = sprites[i].points[j].x * c - sprites[i].points[j].y * s;
-            y = sprites[i].points[j].x * s + sprites[i].points[j].y * c;
+            float x = player_sprite[j].x * c - player_sprite[j].y * s;
+            float y = player_sprite[j].x * s + player_sprite[j].y * c;
 
-            x *= sprites[i].size.x;
-            y *= sprites[i].size.y;
-
-            points[j].x = (int)(x + sprites[i].position.x);
-            points[j].y = (int)(y + sprites[i].position.y);
+            points[j].x = (int)(x + world->players[i].position.x);
+            points[j].y = (int)(y + world->players[i].position.y);
         }
 
-        SDL_RenderDrawLines(renderer, points, (int)sprites[i].count);
+        SDL_RenderDrawLines(renderer, points, PLAYER_SPR_POINTS);
     }
 }
 
 void init_sprites()
 {
-    for (size_t i = 0; i < MAX_PLAYERS; i++)
-    {
-        players[i].alive = 0;
-    }
-}
-
-sprite_t* create_ship(float x, float y, float width, float height, float angle)
-{
-    sprite_t* sprite = get_sprite(players, MAX_PLAYERS);
-
-    if (sprite)
-    {
-        sprite->angle = angle;
-        sprite->count = 5;
-        sprite->position.x = x;
-        sprite->position.y = y;
-        sprite->size.x = width;
-        sprite->size.y = height;
-
-        sprite->points[0].x = -0.5f;    sprite->points[0].y = -0.5f;
-        sprite->points[1].x = 0.5f;     sprite->points[1].y = 0.0f;
-        sprite->points[2].x = -0.5f;    sprite->points[2].y = 0.5f;
-        sprite->points[3].x = -0.25f;   sprite->points[3].y = 0.0f;
-        sprite->points[4].x = -0.5f;    sprite->points[4].y = -0.5f;
-    }
-
-    return sprite;
+    player_sprite[0].x = -PLAYER_SPR_SIZE;
+    player_sprite[0].y = -PLAYER_SPR_SIZE;
+    player_sprite[1].x = PLAYER_SPR_SIZE;
+    player_sprite[1].y = 0.0f;
+    player_sprite[2].x = -PLAYER_SPR_SIZE;
+    player_sprite[2].y = PLAYER_SPR_SIZE;
+    player_sprite[3].x = -PLAYER_SPR_SIZE * 0.5f;
+    player_sprite[3].y = 0.0f;
+    player_sprite[4].x = -PLAYER_SPR_SIZE;
+    player_sprite[4].y = -PLAYER_SPR_SIZE;
 }

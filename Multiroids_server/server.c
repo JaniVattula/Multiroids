@@ -11,7 +11,7 @@ ENetPeer* client = NULL;
 char buffer[256];
 
 input_state_t input;
-player_state_t player;
+world_state_t world_state;
 
 int running = 1;
 
@@ -39,7 +39,9 @@ void init()
     enet_address_get_host_ip(&address, buffer, sizeof(buffer));
     printf("Launching new server at %s:%u\n", buffer, address.port);
 
-    create_ship(128.0f, 128.0f, 64.0f, 64.0f, to_rad(45.0f));
+    world_state.player_count = 1;
+    world_state.players[0].position.x = 320.0f;
+    world_state.players[0].position.y = 240.0f;
 
     memset(&input, 0, sizeof(input));
 }
@@ -75,42 +77,42 @@ void receive_packets()
 
 void update()
 {   
-    if (input.right)
+    for (int i = 0; i < world_state.player_count; i++)
     {
-        players[0].angle += 0.1f;
-    }
-
-    if (input.left)
-    {
-        players[0].angle -= 0.1f;
-    }
-
-    if (input.thrust)
-    {
-        players[0].velocity.x += cosf(players[0].angle) * 0.125f;
-        players[0].velocity.y += sinf(players[0].angle) * 0.125f;
-
-        float speed = sqrtf(powf(players[0].velocity.x, 2.0f) + powf(players[0].velocity.y, 2.0f));
-
-        if (speed > MAX_SPEED)
+        player_state_t* player = &world_state.players[i];
+        if (input.right)
         {
-            players[0].velocity.x *= MAX_SPEED / speed;
-            players[0].velocity.y *= MAX_SPEED / speed;
+            player->angle += 0.1f;
+        }
+
+        if (input.left)
+        {
+            player->angle -= 0.1f;
+        }
+
+        if (input.thrust)
+        {
+            player->velocity.x += cosf(player->angle) * 0.125f;
+            player->velocity.y += sinf(player->angle) * 0.125f;
+
+            float speed = sqrtf(powf(player->velocity.x, 2.0f) + powf(player->velocity.y, 2.0f));
+
+            if (speed > MAX_SPEED)
+            {
+                player->velocity.x *= MAX_SPEED / speed;
+                player->velocity.y *= MAX_SPEED / speed;
+            }
         }
     }
 
-    translate_sprites(players, MAX_PLAYERS);
+    translate_world(&world_state);
 }
 
 void send_packets()
 {
     if (client)
-    { 
-        player.angle = players[0].angle;
-        player.position = players[0].position;
-        player.velocity = players[0].velocity;
-
-        ENetPacket* packet = enet_packet_create(&player, sizeof(player), 0);
+    {
+        ENetPacket* packet = enet_packet_create(&world_state, sizeof(world_state), 0);
 
         enet_host_broadcast(server, 1, packet);
     }

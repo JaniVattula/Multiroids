@@ -13,6 +13,7 @@
 int running = 1;
 
 input_state_t input;
+world_state_t world_state;
 
 ENetHost* client = NULL;
 ENetPeer* peer = NULL;
@@ -63,9 +64,9 @@ void init()
     window = SDL_CreateWindow("Hell no world!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    create_ship(128.0f, 128.0f, 64.0f, 64.0f, to_rad(45.0f));
-
     client = enet_host_create(NULL, 1, 2, 0, 0);
+
+    init_sprites();
 
     if (client == NULL)
     {
@@ -128,8 +129,6 @@ void network_stuff()
 {
     ENetEvent net_event;
 
-    player_state_t player;
-
     ENetPacket* packet = enet_packet_create(&input, sizeof(input), 0);
 
     enet_peer_send(peer, 0, packet);
@@ -144,12 +143,8 @@ void network_stuff()
             net_event.peer->data = "Player 1";
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            memcpy(&player, net_event.packet->data, net_event.packet->dataLength);
+            memcpy(&world_state, net_event.packet->data, net_event.packet->dataLength);
 
-            players[0].angle = player.angle;
-            players[0].position = player.position;
-            players[0].velocity = player.velocity;
-            
             enet_packet_destroy(net_event.packet);
 
             break;
@@ -170,7 +165,7 @@ void render()
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 
-    render_sprites(renderer, players, MAX_PLAYERS);
+    render_world(renderer, &world_state);
 
     SDL_RenderPresent(renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
