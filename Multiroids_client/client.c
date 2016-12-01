@@ -43,6 +43,18 @@ void connect_to_host()
     {
         enet_address_get_host_ip(&peer->address, buffer, sizeof(buffer));
         printf("Connection to %s:%d established.\n", buffer, peer->address.port);
+
+        if (enet_host_service(client, &net_event, 5000) > 0 && net_event.type == ENET_EVENT_TYPE_RECEIVE)
+        {
+            int id = 0;
+            memcpy(&id, net_event.packet->data, net_event.packet->dataLength);
+
+            enet_packet_destroy(net_event.packet);
+
+            input.id = id;
+
+            printf("I am player %d!\n", input.id);
+        }
     }
     else
     {
@@ -54,6 +66,8 @@ void connect_to_host()
 
 void init()
 {
+    memset(&input, 0, sizeof(input));
+
     if (enet_initialize() != 0)
     {
         printf("Failed to initialize ENet.\n");
@@ -61,7 +75,7 @@ void init()
     }
 
     SDL_Init(SDL_INIT_VIDEO);
-    window = SDL_CreateWindow("Hell no world!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("Multiroids", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     client = enet_host_create(NULL, 1, 2, 0, 0);
@@ -74,7 +88,11 @@ void init()
 
     connect_to_host();
 
-    memset(&input, 0, sizeof(input));
+    char title[256];
+
+    sprintf(title, "Multiroids: Player %d", input.id + 1);
+
+    SDL_SetWindowTitle(window, title);
 }
 
 void poll_events()
@@ -136,19 +154,13 @@ void network_stuff()
         switch (net_event.type)
         {
         case ENET_EVENT_TYPE_CONNECT:
-            enet_address_get_host_ip(&net_event.peer->address, buffer, sizeof(buffer));
-            printf("A new client connected from %s:%u\n", buffer, net_event.peer->address.port);
-            net_event.peer->data = "Player 1";
             break;
         case ENET_EVENT_TYPE_RECEIVE:
             memcpy(&world_state, net_event.packet->data, net_event.packet->dataLength);
-
             enet_packet_destroy(net_event.packet);
 
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
-            printf("%s disconnected.\n", (char*)net_event.peer->data);
-            net_event.peer->data = NULL;
             break;
         }
     }
@@ -199,10 +211,11 @@ int main(int argc, char* argv[])
         accumulator += frame_time;
 
         poll_events();
-        network_stuff();
 
         while (accumulator >= delta_time)
         {
+            network_stuff();
+
             update();
             accumulator -= delta_time;
         }

@@ -7,7 +7,7 @@
 #define PLAYER_SPR_SIZE 32
 #define PLAYER_SPR_POINTS 5
 
-#define MAX_PLAYERS 4
+#define MAX_PLAYERS 8
 #define MAX_ASTEROIDS 32
 #define MAX_BULLETS 256
 #define MAX_SPEED 4
@@ -20,6 +20,7 @@ typedef struct point_t
 
 typedef struct input_state_t
 {
+    unsigned char id : 4;
     unsigned char thrust : 1;
     unsigned char left : 1;
     unsigned char right : 1;
@@ -36,7 +37,7 @@ typedef struct player_state_t
 typedef struct world_state_t
 {
     player_state_t players[MAX_PLAYERS];
-    char player_count;
+    unsigned char alive;
 } world_state_t;
 
 void translate_world(world_state_t* world);
@@ -50,6 +51,36 @@ inline float to_rad(float deg)
 inline float to_deg(float rad)
 {
     return rad * 180.0f / (float)M_PI;
+}
+
+inline int is_player_alive(world_state_t* world, int player)
+{
+    return world->alive & 1 << player;
+}
+
+inline void set_player_alive(world_state_t* world, int player)
+{
+    world->alive = world->alive | 1 << player;
+}
+
+inline void set_player_free(world_state_t* world, int player)
+{
+    world->alive = world->alive & ~(1 << player);
+}
+
+inline int get_free_player(world_state_t* world)
+{
+    for (int i = 0; i < MAX_PLAYERS; i++)
+    {
+        if (is_player_alive(world, i))
+            continue;
+
+        set_player_alive(world, i);
+
+        return i;
+    }
+
+    return -1;
 }
 
 extern const point_t player_sprite[PLAYER_SPR_POINTS];

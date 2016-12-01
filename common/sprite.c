@@ -2,8 +2,11 @@
 
 void translate_world(world_state_t* world)
 {
-    for (int i = 0; i < world->player_count; i++)
+    for (int i = 0; i < MAX_PLAYERS; i++)
     {
+        if (!is_player_alive(world, i))
+            continue;
+
         world->players[i].position.x += world->players[i].velocity.x;
         world->players[i].position.y += world->players[i].velocity.y;
     }
@@ -11,8 +14,11 @@ void translate_world(world_state_t* world)
 
 void render_world(SDL_Renderer* renderer, world_state_t* world)
 {
-    for (int i = 0; i < world->player_count; i++)
+    for (int i = 0; i < MAX_PLAYERS; i++)
     {
+        if (!is_player_alive(world, i))
+            continue;
+
         static SDL_Point points[PLAYER_SPR_POINTS];
 
         float s = sinf(world->players[i].angle);
@@ -49,5 +55,9 @@ const SDL_Color player_colors[MAX_PLAYERS] = {
     255, 0,   0,   255,
     0,   255, 0,   255,
     0,   0,   255, 255,
-    255, 0,   255, 255
+    255, 0,   255, 255,
+    255, 255, 0,   255,
+    0,   255, 255, 255,
+    255, 128, 128, 255,
+    128, 128, 255, 255
 };

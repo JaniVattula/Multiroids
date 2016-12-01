@@ -4,15 +4,17 @@
 #include "sprite.h"
 
 #define PORT 8888
+#define MAX_INPUTS 256
 
 ENetHost* server = NULL;
-ENetPeer* client = NULL;
+ENetPeer* peers[MAX_PLAYERS];
 
 char buffer[256];
 
-input_state_t input;
+input_state_t inputs[MAX_INPUTS];
 world_state_t world_state;
 
+int input_count = 0;
 int running = 1;
 
 void init()
@@ -28,7 +30,7 @@ void init()
     enet_address_set_host(&address, "127.0.0.1");
     address.port = PORT;
 
-    server = enet_host_create(&address, 2, 2, 57600 / 4, 14400 / 4);
+    server = enet_host_create(&address, MAX_PLAYERS, 2, 0, 0);
 
     if (server == NULL)
     {
@@ -39,21 +41,7 @@ void init()
     enet_address_get_host_ip(&address, buffer, sizeof(buffer));
     printf("Launching new server at %s:%u\n", buffer, address.port);
 
-    world_state.player_count = 4;
-
-    world_state.players[0].position.x = 320.0f;
-    world_state.players[0].position.y = 240.0f;
-
-    world_state.players[1].position.x = 64.0f;
-    world_state.players[1].position.y = 240.0f;
-
-    world_state.players[2].position.x = 192.0f;
-    world_state.players[2].position.y = 240.0f;
-
-    world_state.players[3].position.x = 448.0f;
-    world_state.players[3].position.y = 240.0f;
-
-    memset(&input, 0, sizeof(input));
+    memset(&peers, 0, sizeof(peers));
 }
 
 void receive_packets()
@@ -67,19 +55,40 @@ void receive_packets()
         case ENET_EVENT_TYPE_CONNECT:
             enet_address_get_host_ip(&net_event.peer->address, buffer, sizeof(buffer));
             printf("A new client connected from %s:%u\n", buffer, net_event.peer->address.port);
-            client = net_event.peer;
-            client->data = "Player 1";
+
+            char id = get_free_player(&world_state);
+
+            if (id != -1)
+            {
+                peers[id] = net_event.peer;
+
+                world_state.players[id].position.x = 320.0f;
+                world_state.players[id].position.y = 240.0f;
+
+                ENetPacket* packet = enet_packet_create(&id, sizeof(id), 0);
+
+                enet_peer_send(peers[id], 0, packet);
+
+                net_event.peer->data = malloc(sizeof(char));
+                *(char*)net_event.peer->data = id;
+            }
+
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            memcpy(&input, net_event.packet->data, net_event.packet->dataLength);
+            memcpy(&inputs[input_count++], net_event.packet->data, net_event.packet->dataLength);
 
             enet_packet_destroy(net_event.packet);
             
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
-            printf("%s disconnected.\n", (char*)net_event.peer->data);
-            net_event.peer->data = NULL;
-            client = NULL;
+
+            printf("Player %d disconnected.\n", *(char*)net_event.peer->data);
+
+            set_player_free(&world_state, *(char*)net_event.peer->data);
+
+            free(net_event.peer->data);
+            
+
             break;
         }
     }
@@ -87,21 +96,21 @@ void receive_packets()
 
 void update()
 {   
-    for (int i = 0; i < world_state.player_count; i++)
+    for (int i = 0; i < input_count; i++)
     {
-        player_state_t* player = &world_state.players[i];
+        player_state_t* player = &world_state.players[inputs[i].id];
 
-        if (input.right)
+        if (inputs[i].right)
         {
             player->angle += 0.1f;
         }
 
-        if (input.left)
+        if (inputs[i].left)
         {
             player->angle -= 0.1f;
         }
 
-        if (input.thrust)
+        if (inputs[i].thrust)
         {
             player->velocity.x += cosf(player->angle) * 0.125f;
             player->velocity.y += sinf(player->angle) * 0.125f;
@@ -116,17 +125,15 @@ void update()
         }
     }
 
+    input_count = 0;
+
     translate_world(&world_state);
 }
 
 void send_packets()
 {
-    if (client)
-    {
-        ENetPacket* packet = enet_packet_create(&world_state, sizeof(world_state), 0);
-
-        enet_host_broadcast(server, 1, packet);
-    }
+    ENetPacket* packet = enet_packet_create(&world_state, sizeof(world_state), 0);
+    enet_host_broadcast(server, 1, packet);
 }
 
 void deinit()
@@ -160,9 +167,9 @@ int main(int argc, char* argv[])
         {
             update();
             accumulator -= delta_time;
-        }
 
-        send_packets();
+            send_packets();
+        }
     }
 
     deinit();
