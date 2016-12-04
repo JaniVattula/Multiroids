@@ -62,8 +62,11 @@ void receive_packets()
             {
                 peers[id] = net_event.peer;
 
-                world_state.players[id].position.x = 320.0f;
-                world_state.players[id].position.y = 240.0f;
+                world_state.players[id].position.x = WINDOW_WIDTH / 2.0f;
+                world_state.players[id].position.y = WINDOW_HEIGHT / 2.0f;
+                world_state.players[id].velocity.x = 0.0f;
+                world_state.players[id].velocity.y = 0.0f;
+                world_state.players[id].angle = (float)M_PI * 1.5f;
 
                 ENetPacket* packet = enet_packet_create(&id, sizeof(id), 0);
 
@@ -76,18 +79,15 @@ void receive_packets()
             break;
         case ENET_EVENT_TYPE_RECEIVE:
             memcpy(&inputs[input_count++], net_event.packet->data, net_event.packet->dataLength);
-
             enet_packet_destroy(net_event.packet);
             
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
-
             printf("Player %d disconnected.\n", *(char*)net_event.peer->data);
 
             set_player_free(&world_state, *(char*)net_event.peer->data);
 
             free(net_event.peer->data);
-            
 
             break;
         }

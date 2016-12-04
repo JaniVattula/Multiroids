@@ -7,9 +7,6 @@
 #define SERVER "127.0.0.1"
 #define PORT 8888
 
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 480
-
 int running = 1;
 
 input_state_t input;
@@ -222,6 +219,10 @@ int main(int argc, char* argv[])
 
         render();
 	}
+
+    enet_peer_disconnect(peer, 0);
+
+    network_stuff();
 
     deinit();
 

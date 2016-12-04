@@ -3,14 +3,25 @@
 
 #include <SDL.h>
 
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 480
+
 #define MAX_POINTS 8
-#define PLAYER_SPR_SIZE 32
+#define PLAYER_SPR_SIZE 16
 #define PLAYER_SPR_POINTS 5
 
 #define MAX_PLAYERS 8
 #define MAX_ASTEROIDS 32
 #define MAX_BULLETS 256
 #define MAX_SPEED 4
+
+enum PACKET_TYPE
+{
+    PACKET_CONNECT = 0,
+    PACKET_DISCONNECT,
+    PACKET_INPUT,
+    PACKET_STATE_UPDATE
+};
 
 typedef struct point_t
 {
@@ -20,11 +31,12 @@ typedef struct point_t
 
 typedef struct input_state_t
 {
-    unsigned char id : 4;
-    unsigned char thrust : 1;
-    unsigned char left : 1;
-    unsigned char right : 1;
-    unsigned char shoot : 1;
+    uint32_t sequence;
+    uint8_t id : 4;
+    uint8_t thrust : 1;
+    uint8_t left : 1;
+    uint8_t right : 1;
+    uint8_t shoot : 1;
 } input_state_t;
 
 typedef struct player_state_t
@@ -36,8 +48,9 @@ typedef struct player_state_t
 
 typedef struct world_state_t
 {
+    uint32_t sequence;
     player_state_t players[MAX_PLAYERS];
-    unsigned char alive;
+    uint8_t alive;
 } world_state_t;
 
 void translate_world(world_state_t* world);
