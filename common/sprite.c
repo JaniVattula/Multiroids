@@ -1,5 +1,8 @@
 #include "sprite.h"
 
+const double physics_step = 1 / 60.0;
+const double network_step = 1 / 10.0;
+
 void translate_world(world_state_t* world)
 {
     for (int i = 0; i < MAX_PLAYERS; i++)

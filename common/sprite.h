@@ -15,13 +15,10 @@
 #define MAX_BULLETS 256
 #define MAX_SPEED 4
 
-enum PACKET_TYPE
-{
-    PACKET_CONNECT = 0,
-    PACKET_DISCONNECT,
-    PACKET_INPUT,
-    PACKET_STATE_UPDATE
-};
+#define ACCELERATION 0.0675f
+
+extern const double physics_step;
+extern const double network_step;
 
 typedef struct point_t
 {
@@ -41,6 +38,7 @@ typedef struct input_state_t
 
 typedef struct player_state_t
 {
+    uint32_t sequence;
     point_t position;
     point_t velocity;
     float angle;

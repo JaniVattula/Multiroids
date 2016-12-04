@@ -69,6 +69,7 @@ void receive_packets()
                 world_state.players[id].velocity.x = 0.0f;
                 world_state.players[id].velocity.y = 0.0f;
                 world_state.players[id].angle = (float)M_PI * 1.5f;
+                world_state.players[id].sequence = 0;
 
                 ENetPacket* packet = enet_packet_create(&id, sizeof(id), 0);
 
@@ -114,8 +115,8 @@ void update()
 
         if (inputs[i].thrust)
         {
-            player->velocity.x += cosf(player->angle) * 0.125f;
-            player->velocity.y += sinf(player->angle) * 0.125f;
+            player->velocity.x += cosf(player->angle) * ACCELERATION;
+            player->velocity.y += sinf(player->angle) * ACCELERATION;
 
             float speed = sqrtf(powf(player->velocity.x, 2.0f) + powf(player->velocity.y, 2.0f));
 
@@ -125,6 +126,8 @@ void update()
                 player->velocity.y *= MAX_SPEED / speed;
             }
         }
+
+        player->sequence = inputs[i].sequence;
     }
 
     input_count = 0;
@@ -155,7 +158,7 @@ int main(int argc, char* argv[])
 
     double accumulator = 0.0;
     double current_time = 0.0;
-    double delta_time = 1 / 60.0;
+    double send_time = 0.0;
 
     while (running)
     {
@@ -167,12 +170,16 @@ int main(int argc, char* argv[])
 
         receive_packets();
 
-        while (accumulator >= delta_time)
+        while (accumulator >= physics_step)
         {
             update();
-            accumulator -= delta_time;
+            accumulator -= physics_step;
 
-            send_packets();
+            if (new_time - send_time >= network_step)
+            {
+                send_packets();
+                send_time = new_time;
+            }
         }
     }
 

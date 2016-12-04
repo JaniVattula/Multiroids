@@ -4,14 +4,14 @@
 #include <math.h>
 #include "sprite.h"
 
-#define SERVER "127.0.0.1"
-#define PORT 8888
 #define MAX_INPUTS 128
 
 int running = 1;
+int input_count = 0;
 
 input_state_t input;
 world_state_t world_state;
+input_state_t inputs[MAX_INPUTS];
 player_state_t* player;
 
 ENetHost* client = NULL;
@@ -22,13 +22,13 @@ SDL_Renderer* renderer = NULL;
 
 char buffer[256];
 
-void connect_to_host()
+void connect_to_host(char* ip, int port)
 {
     ENetAddress address;
     ENetEvent net_event;
 
-    enet_address_set_host(&address, SERVER);
-    address.port = PORT;
+    enet_address_set_host(&address, ip);
+    address.port = port;
 
     peer = enet_host_connect(client, &address, 2, 0);
 
@@ -53,6 +53,7 @@ void connect_to_host()
             enet_packet_destroy(net_event.packet);
 
             input.id = id;
+            input.sequence = 0;
 
             printf("I am player %d!\n", input.id);
         }
@@ -60,12 +61,12 @@ void connect_to_host()
     else
     {
         enet_peer_reset(peer);
-        printf("Connection to %s:%d failed.\n", SERVER, PORT);
+        printf("Connection to %s:%d failed.\n", ip, port);
         exit(EXIT_FAILURE);
     }
 }
 
-void init()
+void init(char* ip, int port)
 {
     memset(&input, 0, sizeof(input));
 
@@ -96,7 +97,7 @@ void init()
         exit(EXIT_FAILURE);
     }
 
-    connect_to_host();
+    connect_to_host(ip, port);
 
     char title[256];
 
@@ -153,8 +154,12 @@ void poll_events()
     }
 }
 
+void update();
+
 void network_stuff()
 {
+    world_state_t state;
+
     ENetEvent net_event;
     ENetPacket* packet = enet_packet_create(
         &input, 
@@ -170,9 +175,26 @@ void network_stuff()
         case ENET_EVENT_TYPE_CONNECT:
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            memcpy(&world_state, net_event.packet->data, net_event.packet->dataLength);
+            memcpy(&state, net_event.packet->data, net_event.packet->dataLength);
 
             enet_packet_destroy(net_event.packet);
+
+            world_state = state;
+
+            int j = 0;
+
+            for (int i = 0; i < input_count; i++)
+            {
+                if (inputs[i].sequence > player->sequence)
+                {
+                       
+                    inputs[j++] = input = inputs[i];
+
+                    update();
+                }
+            }
+
+            input_count = j;
 
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
@@ -195,8 +217,8 @@ void update()
 
     if (input.thrust)
     {
-        player->velocity.x += cosf(player->angle) * 0.125f;
-        player->velocity.y += sinf(player->angle) * 0.125f;
+        player->velocity.x += cosf(player->angle) * ACCELERATION;
+        player->velocity.y += sinf(player->angle) * ACCELERATION;
 
         float speed = sqrtf(
             powf(player->velocity.x, 2.0f) + 
@@ -238,11 +260,26 @@ int main(int argc, char* argv[])
 	(void)argc;
 	(void)argv;
 
-    init();
+    FILE* file = NULL;
+    char ip[255];
+    int port = 0;
+
+    if (file = fopen("config.txt", "r"))
+    {
+        fscanf(file, "%s %d", ip, &port);
+        fclose(file);
+    }
+    else
+    {
+        printf("Config file not found!\n");
+        printf("Type server ip and address(format: 127.0.0.1 8888)\n");
+        scanf("%s %d", ip, &port);
+    }
+
+    init(ip, port);
 
     double accumulator = 0.0;
     double current_time = 0.0;
-    double delta_time = 1 / 60.0;
 
 	while (running)
 	{
@@ -254,12 +291,16 @@ int main(int argc, char* argv[])
 
         poll_events();
 
-        while (accumulator >= delta_time)
+        while (accumulator >= physics_step)
         {
-            network_stuff();
-
             update();
-            accumulator -= delta_time;
+
+
+            input.sequence++;
+            inputs[input_count++] = input;
+
+            network_stuff();
+            accumulator -= physics_step;
         }
 
         render();
