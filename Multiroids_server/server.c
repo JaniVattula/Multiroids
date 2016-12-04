@@ -42,6 +42,8 @@ void init()
     printf("Launching new server at %s:%u\n", buffer, address.port);
 
     memset(&peers, 0, sizeof(peers));
+
+    world_state.sequence = 0;
 }
 
 void receive_packets()
@@ -134,6 +136,8 @@ void send_packets()
 {
     ENetPacket* packet = enet_packet_create(&world_state, sizeof(world_state), 0);
     enet_host_broadcast(server, 1, packet);
+
+    world_state.sequence++;
 }
 
 void deinit()

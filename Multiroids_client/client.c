@@ -6,11 +6,13 @@
 
 #define SERVER "127.0.0.1"
 #define PORT 8888
+#define MAX_INPUTS 128
 
 int running = 1;
 
 input_state_t input;
 world_state_t world_state;
+player_state_t* player;
 
 ENetHost* client = NULL;
 ENetPeer* peer = NULL;
@@ -36,12 +38,14 @@ void connect_to_host()
         exit(EXIT_FAILURE);
     }
 
-    if (enet_host_service(client, &net_event, 5000) > 0 && net_event.type == ENET_EVENT_TYPE_CONNECT)
+    if (enet_host_service(client, &net_event, 5000) > 0 && 
+        net_event.type == ENET_EVENT_TYPE_CONNECT)
     {
         enet_address_get_host_ip(&peer->address, buffer, sizeof(buffer));
         printf("Connection to %s:%d established.\n", buffer, peer->address.port);
 
-        if (enet_host_service(client, &net_event, 5000) > 0 && net_event.type == ENET_EVENT_TYPE_RECEIVE)
+        if (enet_host_service(client, &net_event, 5000) > 0 && 
+            net_event.type == ENET_EVENT_TYPE_RECEIVE)
         {
             int id = 0;
             memcpy(&id, net_event.packet->data, net_event.packet->dataLength);
@@ -72,8 +76,17 @@ void init()
     }
 
     SDL_Init(SDL_INIT_VIDEO);
-    window = SDL_CreateWindow("Multiroids", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    window = SDL_CreateWindow(
+        "Multiroids", 
+        SDL_WINDOWPOS_CENTERED, 
+        SDL_WINDOWPOS_CENTERED,
+        WINDOW_WIDTH, 
+        WINDOW_HEIGHT, 
+        SDL_WINDOW_SHOWN);
+
+    renderer = SDL_CreateRenderer(window, -1, 
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     client = enet_host_create(NULL, 1, 2, 0, 0);
 
@@ -88,6 +101,8 @@ void init()
     char title[256];
 
     sprintf(title, "Multiroids: Player %d", input.id + 1);
+
+    player = &world_state.players[input.id];
 
     SDL_SetWindowTitle(window, title);
 }
@@ -141,8 +156,10 @@ void poll_events()
 void network_stuff()
 {
     ENetEvent net_event;
-
-    ENetPacket* packet = enet_packet_create(&input, sizeof(input), 0);
+    ENetPacket* packet = enet_packet_create(
+        &input, 
+        sizeof(input), 
+        ENET_PACKET_FLAG_RELIABLE);
 
     enet_peer_send(peer, 0, packet);
 
@@ -154,6 +171,7 @@ void network_stuff()
             break;
         case ENET_EVENT_TYPE_RECEIVE:
             memcpy(&world_state, net_event.packet->data, net_event.packet->dataLength);
+
             enet_packet_destroy(net_event.packet);
 
             break;
@@ -165,6 +183,33 @@ void network_stuff()
 
 void update()
 {
+    if (input.right)
+    {
+        player->angle += 0.1f;
+    }
+
+    if (input.left)
+    {
+        player->angle -= 0.1f;
+    }
+
+    if (input.thrust)
+    {
+        player->velocity.x += cosf(player->angle) * 0.125f;
+        player->velocity.y += sinf(player->angle) * 0.125f;
+
+        float speed = sqrtf(
+            powf(player->velocity.x, 2.0f) + 
+            powf(player->velocity.y, 2.0f));
+
+        if (speed > MAX_SPEED)
+        {
+            player->velocity.x *= MAX_SPEED / speed;
+            player->velocity.y *= MAX_SPEED / speed;
+        }
+    }
+
+    translate_world(&world_state);
 }
 
 void render()
