@@ -9,8 +9,12 @@
 int running = 1;
 int input_count = 0;
 
+double interpolation = 0.0;
+
 input_state_t input;
 world_state_t world_state;
+world_state_t prev_state;
+world_state_t new_state;
 input_state_t inputs[MAX_INPUTS];
 player_state_t* player;
 
@@ -154,7 +158,54 @@ void poll_events()
     }
 }
 
-void update();
+void interpolate_world()
+{
+    float t = (float)(interpolation / network_step);
+
+    t = t > 1.0f ? 1.0f : t;
+
+    for (int i = 0; i < MAX_PLAYERS; i++)
+    {
+        if (i == input.id || !is_player_alive(&world_state, i))
+            continue;
+
+        world_state.players[i].angle = prev_state.players[i].angle + t * (new_state.players[i].angle - prev_state.players[i].angle);
+        world_state.players[i].position.x = prev_state.players[i].position.x + t * (new_state.players[i].position.x - prev_state.players[i].position.x);
+        world_state.players[i].position.y = prev_state.players[i].position.y + t * (new_state.players[i].position.y - prev_state.players[i].position.y);
+    }
+}
+
+void update()
+{
+    if (input.right)
+    {
+        player->angle += 0.1f;
+    }
+
+    if (input.left)
+    {
+        player->angle -= 0.1f;
+    }
+
+    if (input.thrust)
+    {
+        player->velocity.x += cosf(player->angle) * ACCELERATION;
+        player->velocity.y += sinf(player->angle) * ACCELERATION;
+
+        float speed = sqrtf(
+            powf(player->velocity.x, 2.0f) +
+            powf(player->velocity.y, 2.0f));
+
+        if (speed > MAX_SPEED)
+        {
+            player->velocity.x *= MAX_SPEED / speed;
+            player->velocity.y *= MAX_SPEED / speed;
+        }
+    }
+
+    interpolate_world();
+    translate_world(&world_state);
+}
 
 void network_stuff()
 {
@@ -179,7 +230,10 @@ void network_stuff()
 
             enet_packet_destroy(net_event.packet);
 
-            world_state = state;
+            prev_state = world_state;
+            world_state = new_state = state;
+
+            interpolation = 0.0;
 
             int j = 0;
 
@@ -187,7 +241,6 @@ void network_stuff()
             {
                 if (inputs[i].sequence > player->sequence)
                 {
-                       
                     inputs[j++] = input = inputs[i];
 
                     update();
@@ -201,37 +254,6 @@ void network_stuff()
             break;
         }
     }
-}
-
-void update()
-{
-    if (input.right)
-    {
-        player->angle += 0.1f;
-    }
-
-    if (input.left)
-    {
-        player->angle -= 0.1f;
-    }
-
-    if (input.thrust)
-    {
-        player->velocity.x += cosf(player->angle) * ACCELERATION;
-        player->velocity.y += sinf(player->angle) * ACCELERATION;
-
-        float speed = sqrtf(
-            powf(player->velocity.x, 2.0f) + 
-            powf(player->velocity.y, 2.0f));
-
-        if (speed > MAX_SPEED)
-        {
-            player->velocity.x *= MAX_SPEED / speed;
-            player->velocity.y *= MAX_SPEED / speed;
-        }
-    }
-
-    translate_world(&world_state);
 }
 
 void render()
@@ -301,6 +323,7 @@ int main(int argc, char* argv[])
 
             network_stuff();
             accumulator -= physics_step;
+            interpolation += physics_step;
         }
 
         render();
