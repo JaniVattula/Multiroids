@@ -53,14 +53,11 @@ void connect_to_host(char* ip, int port)
         if (enet_host_service(client, &net_event, 5000) > 0 && 
             net_event.type == ENET_EVENT_TYPE_RECEIVE)
         {
-            int id = 0;
-            memcpy(&id, net_event.packet->data, net_event.packet->dataLength);
-
-            enet_packet_destroy(net_event.packet);
-
-            input.id = id;
+            input.id = *(uint8_t*)net_event.packet->data;
             input.sequence = 0;
             input.type = PACKET_INPUT;
+
+            enet_packet_destroy(net_event.packet);
 
             printf("I am player %d!\n", input.id);
         }
@@ -77,6 +74,7 @@ void init(char* ip, int port)
 {
     printf("SIZE: %zd\n", sizeof(world_state));
     memset(&input, 0, sizeof(input));
+    memset(&bullets, 0, sizeof(bullets));
 
     if (enet_initialize() != 0)
     {
@@ -131,12 +129,15 @@ void poll_events()
             switch (polled_event.key.keysym.sym)
             {
             case SDLK_UP:
+            case SDLK_w:
                 input.thrust = 1;
                 break;
             case SDLK_LEFT:
+            case SDLK_a:
                 input.left = 1;
                 break;
             case SDLK_RIGHT:
+            case SDLK_d:
                 input.right = 1;
                 break;
             case SDLK_LCTRL:
@@ -153,12 +154,15 @@ void poll_events()
             switch (polled_event.key.keysym.sym)
             {
             case SDLK_UP:
+            case SDLK_w:
                 input.thrust = 0;
                 break;
             case SDLK_LEFT:
+            case SDLK_a:
                 input.left = 0;
                 break;
             case SDLK_RIGHT:
+            case SDLK_d:
                 input.right = 0;
                 break;
             case SDLK_LCTRL:
@@ -191,40 +195,39 @@ void update()
 {
     if (input.right)
     {
-        player->angle += 0.1f;
+        player->angle += PLAYER_TURN_SPEED;
     }
 
     if (input.left)
     {
-        player->angle -= 0.1f;
+        player->angle -= PLAYER_TURN_SPEED;
     }
 
     if (input.thrust)
     {
-        player->velocity.x += cosf(player->angle) * ACCELERATION;
-        player->velocity.y += sinf(player->angle) * ACCELERATION;
+        player->velocity.x += cosf(player->angle) * PLAYER_ACCELERATION;
+        player->velocity.y += sinf(player->angle) * PLAYER_ACCELERATION;
 
         float speed = sqrtf(
             powf(player->velocity.x, 2.0f) +
             powf(player->velocity.y, 2.0f));
 
-        if (speed > MAX_SPEED)
+        if (speed > PLAYER_MOVE_SPEED)
         {
-            player->velocity.x *= MAX_SPEED / speed;
-            player->velocity.y *= MAX_SPEED / speed;
+            player->velocity.x *= PLAYER_MOVE_SPEED / speed;
+            player->velocity.y *= PLAYER_MOVE_SPEED / speed;
         }
     }
 
     interpolate_world();
     translate_world(&world_state);
     translate_bullets(bullets, bullet_count);
+    check_bullet_collisions(&world_state, bullets, bullet_count);
+    clean_bullets(bullets, &bullet_count);
 }
 
 void network_stuff()
 {
-    world_state_t* state;
-    uint8_t* packet_type = NULL;
-
     ENetEvent net_event;
     ENetPacket* packet = enet_packet_create(
         &input, 
@@ -240,15 +243,11 @@ void network_stuff()
         case ENET_EVENT_TYPE_CONNECT:
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            packet_type = (uint8_t*)net_event.packet->data;
-
-            switch (*packet_type)
+            switch (*(uint8_t*)net_event.packet->data)
             {
             case PACKET_WORLD:
-                state = (world_state_t*)packet_type;
-
                 prev_state = world_state;
-                world_state = new_state = *state;
+                world_state = new_state = *(world_state_t*)net_event.packet->data;
 
                 interpolation = 0.0;
 
@@ -267,7 +266,7 @@ void network_stuff()
                 input_count = j;
                 break;
             case PACKET_BULLET:
-                bullets[bullet_count++] = *(bullet_state_t*)packet_type;
+                bullets[bullet_count++] = *(bullet_state_t*)net_event.packet->data;
                 break;
             }
 

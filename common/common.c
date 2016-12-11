@@ -1,4 +1,5 @@
 #include "common.h"
+#include <stdio.h>
 
 const double physics_step = 1 / 60.0;
 const double network_step = 1 / 10.0;
@@ -46,7 +47,7 @@ void render_world(SDL_Renderer* renderer, world_state_t* world)
     }
 }
 
-void translate_bullets(bullet_state_t* bullets, size_t count)
+void translate_bullets(bullet_state_t* bullets, int count)
 {
     for (int i = 0; i < count; i++)
     {
@@ -55,14 +56,16 @@ void translate_bullets(bullet_state_t* bullets, size_t count)
     }
 }
 
-void render_bullets(SDL_Renderer* renderer, bullet_state_t* bullets, size_t count)
+void render_bullets(SDL_Renderer* renderer, bullet_state_t* bullets, int count)
 {
-    SDL_Point point;
+    SDL_Rect rect;
 
     for (int i = 0; i < count; i++)
     {
-        point.x = (int)bullets[i].position.x;
-        point.y = (int)bullets[i].position.y;
+        rect.x = (int)bullets[i].position.x - BULLET_SIZE / 2;
+        rect.y = (int)bullets[i].position.y - BULLET_SIZE / 2;
+        rect.w = BULLET_SIZE;
+        rect.h = BULLET_SIZE;
 
         SDL_SetRenderDrawColor(renderer,
             player_colors[bullets[i].owner].r,
@@ -70,7 +73,50 @@ void render_bullets(SDL_Renderer* renderer, bullet_state_t* bullets, size_t coun
             player_colors[bullets[i].owner].b,
             player_colors[bullets[i].owner].a);
 
-        SDL_RenderDrawPoint(renderer, point.x, point.y);
+        SDL_RenderDrawRect(renderer, &rect);
+    }
+}
+
+void clean_bullets(bullet_state_t* bullets, int* count)
+{
+    int new_count = 0;
+    
+    for (int i = 0; i < *count; i++)
+    {
+        if (bullets[i].alive)
+            bullets[new_count++] = bullets[i];
+    }
+
+    *count = new_count;
+}
+
+void check_bullet_collisions(world_state_t* world, bullet_state_t* bullets, int count)
+{
+    SDL_Rect player;
+    SDL_Rect bullet;
+
+    for (int i = 0; i < count; i++)
+    {
+        for (int j = 0; j < MAX_PLAYERS; j++)
+        {
+            if (!is_player_alive(world, j) || j == bullets[i].owner)
+                continue;
+
+            player.x = (int)(world->players[j].position.x - PLAYER_SPR_SIZE / 2);
+            player.y = (int)(world->players[j].position.y - PLAYER_SPR_SIZE / 2);
+            player.w = PLAYER_SPR_SIZE;
+            player.h = PLAYER_SPR_SIZE;
+
+            bullet.x = (int)(bullets[i].position.x - BULLET_SIZE / 2);
+            bullet.y = (int)(bullets[i].position.y - BULLET_SIZE / 2);
+            bullet.w = BULLET_SIZE;
+            bullet.h = BULLET_SIZE;
+
+            if (SDL_HasIntersection(&bullet, &player))
+            {
+                bullets[i].alive = 0;
+            }
+        }
     }
 }
 

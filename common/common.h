@@ -1,23 +1,23 @@
-#ifndef __SPRITE_H__
-#define __SPRITE_H__
+#ifndef __COMMON_H__
+#define __COMMON_H__
 
 #include <SDL.h>
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-#define MAX_POINTS 8
 #define PLAYER_SPR_SIZE 16
 #define PLAYER_SPR_POINTS 5
+#define PLAYER_ACCELERATION 0.0675f
+#define PLAYER_MOVE_SPEED 3
+#define PLAYER_TURN_SPEED 0.05f
 
 #define MAX_PLAYERS 8
-#define MAX_ASTEROIDS 32
 #define MAX_BULLETS 256
-#define MAX_SPEED 4
 #define FIRE_INTERVAL 0.5
-#define BULLET_SPEED 8
 
-#define ACCELERATION 0.0675f
+#define BULLET_SIZE 3
+#define BULLET_SPEED 5
 
 enum PACKET_TYPE
 {
@@ -50,7 +50,8 @@ typedef struct bullet_state_t
 {
     uint8_t type;
     uint32_t sequence;
-    uint8_t owner;
+    uint8_t owner : 7;
+    uint8_t alive : 1;
     point_t position;
     point_t velocity;
 } bullet_state_t;
@@ -73,8 +74,10 @@ typedef struct world_state_t
 
 void translate_world(world_state_t* world);
 void render_world(SDL_Renderer* renderer, world_state_t* world);
-void translate_bullets(bullet_state_t* bullets, size_t count);
-void render_bullets(SDL_Renderer* renderer, bullet_state_t* bullets, size_t count);
+void translate_bullets(bullet_state_t* bullets, int count);
+void render_bullets(SDL_Renderer* renderer, bullet_state_t* bullets, int count);
+void clean_bullets(bullet_state_t* bullets, int* count);
+void check_bullet_collisions(world_state_t* world, bullet_state_t* bullets, int count);
 
 inline float to_rad(float deg)
 {
@@ -118,4 +121,5 @@ inline int get_free_player(world_state_t* world)
 
 extern const point_t player_sprite[PLAYER_SPR_POINTS];
 extern const SDL_Color player_colors[MAX_PLAYERS];
+
 #endif
