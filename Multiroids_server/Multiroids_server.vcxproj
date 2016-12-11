@@ -154,11 +154,11 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\common\sprite.c" />
+    <ClCompile Include="..\common\common.c" />
     <ClCompile Include="server.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\common\sprite.h" />
+    <ClInclude Include="..\common\common.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

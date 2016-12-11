@@ -14,8 +14,17 @@
 #define MAX_ASTEROIDS 32
 #define MAX_BULLETS 256
 #define MAX_SPEED 4
+#define FIRE_INTERVAL 0.5
+#define BULLET_SPEED 8
 
 #define ACCELERATION 0.0675f
+
+enum PACKET_TYPE
+{
+    PACKET_INPUT = 0,
+    PACKET_WORLD,
+    PACKET_BULLET
+};
 
 extern const double physics_step;
 extern const double network_step;
@@ -28,6 +37,7 @@ typedef struct point_t
 
 typedef struct input_state_t
 {
+    uint8_t type;
     uint32_t sequence;
     uint8_t id : 4;
     uint8_t thrust : 1;
@@ -35,6 +45,15 @@ typedef struct input_state_t
     uint8_t right : 1;
     uint8_t shoot : 1;
 } input_state_t;
+
+typedef struct bullet_state_t
+{
+    uint8_t type;
+    uint32_t sequence;
+    uint8_t owner;
+    point_t position;
+    point_t velocity;
+} bullet_state_t;
 
 typedef struct player_state_t
 {
@@ -46,6 +65,7 @@ typedef struct player_state_t
 
 typedef struct world_state_t
 {
+    uint8_t type;
     uint32_t sequence;
     player_state_t players[MAX_PLAYERS];
     uint8_t alive;
@@ -53,6 +73,8 @@ typedef struct world_state_t
 
 void translate_world(world_state_t* world);
 void render_world(SDL_Renderer* renderer, world_state_t* world);
+void translate_bullets(bullet_state_t* bullets, size_t count);
+void render_bullets(SDL_Renderer* renderer, bullet_state_t* bullets, size_t count);
 
 inline float to_rad(float deg)
 {

@@ -2,12 +2,13 @@
 #include <stdio.h>
 #include <enet\enet.h>
 #include <math.h>
-#include "sprite.h"
+#include "common.h"
 
 #define MAX_INPUTS 128
 
 int running = 1;
 int input_count = 0;
+int bullet_count = 0;
 
 double interpolation = 0.0;
 
@@ -16,6 +17,7 @@ world_state_t world_state;
 world_state_t prev_state;
 world_state_t new_state;
 input_state_t inputs[MAX_INPUTS];
+bullet_state_t bullets[MAX_BULLETS];
 player_state_t* player;
 
 ENetHost* client = NULL;
@@ -58,6 +60,7 @@ void connect_to_host(char* ip, int port)
 
             input.id = id;
             input.sequence = 0;
+            input.type = PACKET_INPUT;
 
             printf("I am player %d!\n", input.id);
         }
@@ -72,6 +75,7 @@ void connect_to_host(char* ip, int port)
 
 void init(char* ip, int port)
 {
+    printf("SIZE: %zd\n", sizeof(world_state));
     memset(&input, 0, sizeof(input));
 
     if (enet_initialize() != 0)
@@ -126,14 +130,18 @@ void poll_events()
         {
             switch (polled_event.key.keysym.sym)
             {
-            case SDLK_w:
+            case SDLK_UP:
                 input.thrust = 1;
                 break;
-            case SDLK_a:
+            case SDLK_LEFT:
                 input.left = 1;
                 break;
-            case SDLK_d:
+            case SDLK_RIGHT:
                 input.right = 1;
+                break;
+            case SDLK_LCTRL:
+            case SDLK_RCTRL:
+                input.shoot = 1;
                 break;
             case SDLK_ESCAPE:
                 running = 0;
@@ -144,14 +152,18 @@ void poll_events()
         {
             switch (polled_event.key.keysym.sym)
             {
-            case SDLK_w:
+            case SDLK_UP:
                 input.thrust = 0;
                 break;
-            case SDLK_a:
+            case SDLK_LEFT:
                 input.left = 0;
                 break;
-            case SDLK_d:
+            case SDLK_RIGHT:
                 input.right = 0;
+                break;
+            case SDLK_LCTRL:
+            case SDLK_RCTRL:
+                input.shoot = 0;
                 break;
             }
         }
@@ -205,11 +217,13 @@ void update()
 
     interpolate_world();
     translate_world(&world_state);
+    translate_bullets(bullets, bullet_count);
 }
 
 void network_stuff()
 {
-    world_state_t state;
+    world_state_t* state;
+    uint8_t* packet_type = NULL;
 
     ENetEvent net_event;
     ENetPacket* packet = enet_packet_create(
@@ -226,28 +240,38 @@ void network_stuff()
         case ENET_EVENT_TYPE_CONNECT:
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            memcpy(&state, net_event.packet->data, net_event.packet->dataLength);
+            packet_type = (uint8_t*)net_event.packet->data;
 
-            enet_packet_destroy(net_event.packet);
-
-            prev_state = world_state;
-            world_state = new_state = state;
-
-            interpolation = 0.0;
-
-            int j = 0;
-
-            for (int i = 0; i < input_count; i++)
+            switch (*packet_type)
             {
-                if (inputs[i].sequence > player->sequence)
-                {
-                    inputs[j++] = input = inputs[i];
+            case PACKET_WORLD:
+                state = (world_state_t*)packet_type;
 
-                    update();
+                prev_state = world_state;
+                world_state = new_state = *state;
+
+                interpolation = 0.0;
+
+                int j = 0;
+
+                for (int i = 0; i < input_count; i++)
+                {
+                    if (inputs[i].sequence > player->sequence)
+                    {
+                        inputs[j++] = input = inputs[i];
+
+                        update();
+                    }
                 }
+
+                input_count = j;
+                break;
+            case PACKET_BULLET:
+                bullets[bullet_count++] = *(bullet_state_t*)packet_type;
+                break;
             }
 
-            input_count = j;
+            enet_packet_destroy(net_event.packet);
 
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
@@ -262,6 +286,7 @@ void render()
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 
     render_world(renderer, &world_state);
+    render_bullets(renderer, bullets, bullet_count);
 
     SDL_RenderPresent(renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);

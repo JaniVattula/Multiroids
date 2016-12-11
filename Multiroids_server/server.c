@@ -1,7 +1,7 @@
 #include <SDL.h>
 #include <stdio.h>
 #include <enet\enet.h>
-#include "sprite.h"
+#include "common.h"
 
 #define PORT 8888
 #define MAX_INPUTS 256
@@ -11,6 +11,8 @@ ENetPeer* peers[MAX_PLAYERS];
 
 char buffer[256];
 
+double last_shots[MAX_PLAYERS];
+
 input_state_t inputs[MAX_INPUTS];
 world_state_t world_state;
 
@@ -19,6 +21,8 @@ int running = 1;
 
 void init()
 {
+    SDL_Init(SDL_INIT_TIMER);
+
     if (enet_initialize() != 0)
     {
         printf("Failed to initialize ENet.\n");
@@ -27,7 +31,7 @@ void init()
 
     ENetAddress address;
 
-    enet_address_set_host(&address, "127.0.0.1");
+    address.host = ENET_HOST_ANY;
     address.port = PORT;
 
     server = enet_host_create(&address, MAX_PLAYERS, 2, 0, 0);
@@ -43,12 +47,14 @@ void init()
 
     memset(&peers, 0, sizeof(peers));
 
+    world_state.type = PACKET_WORLD;
     world_state.sequence = 0;
 }
 
 void receive_packets()
 {
     ENetEvent net_event;
+    uint8_t* packet_type;
 
     while (enet_host_service(server, &net_event, 0) > 0)
     {
@@ -58,7 +64,7 @@ void receive_packets()
             enet_address_get_host_ip(&net_event.peer->address, buffer, sizeof(buffer));
             printf("A new client connected from %s:%u\n", buffer, net_event.peer->address.port);
 
-            char id = get_free_player(&world_state);
+            uint8_t id = get_free_player(&world_state);
 
             if (id != -1)
             {
@@ -75,15 +81,23 @@ void receive_packets()
 
                 enet_peer_send(peers[id], 0, packet);
 
-                net_event.peer->data = malloc(sizeof(char));
-                *(char*)net_event.peer->data = id;
+                net_event.peer->data = malloc(sizeof(uint8_t));
+                *(uint8_t*)net_event.peer->data = id;
             }
 
             break;
         case ENET_EVENT_TYPE_RECEIVE:
-            memcpy(&inputs[input_count++], net_event.packet->data, net_event.packet->dataLength);
+            packet_type = (uint8_t*)net_event.packet->data;
+
+            switch (*packet_type)
+            {
+            case PACKET_INPUT:
+                inputs[input_count++] = *(input_state_t*)net_event.packet->data;
+                break;
+            }
+
             enet_packet_destroy(net_event.packet);
-            
+
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
             printf("Player %d disconnected.\n", *(char*)net_event.peer->data);
@@ -99,6 +113,8 @@ void receive_packets()
 
 void update()
 {   
+    double current_time = SDL_GetTicks() / 1000.0;
+
     for (int i = 0; i < input_count; i++)
     {
         player_state_t* player = &world_state.players[inputs[i].id];
@@ -127,6 +143,23 @@ void update()
             }
         }
 
+        if (inputs[i].shoot && current_time - last_shots[inputs[i].id] > FIRE_INTERVAL)
+        {
+            printf("PLAYER %d FIRED!\n", inputs[i].id);
+            last_shots[inputs[i].id] = current_time;
+
+            bullet_state_t bullet;
+            bullet.type = PACKET_BULLET;
+            bullet.sequence = inputs[i].sequence;
+            bullet.owner = inputs[i].id;
+            bullet.position = player->position;
+            bullet.velocity.x = cosf(player->angle) * BULLET_SPEED;
+            bullet.velocity.y = sinf(player->angle) * BULLET_SPEED;
+
+            ENetPacket* packet = enet_packet_create(&bullet, sizeof(bullet), ENET_PACKET_FLAG_RELIABLE);
+            enet_host_broadcast(server, 1, packet);
+        }
+
         player->sequence = inputs[i].sequence;
     }
 
@@ -147,6 +180,8 @@ void deinit()
 {
     enet_host_destroy(server);
     enet_deinitialize();
+
+    SDL_Quit();
 }
 
 int main(int argc, char* argv[])
