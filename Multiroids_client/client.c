@@ -170,7 +170,13 @@ void interpolate_world()
             continue;
 
         world_state.players[i].angle = prev_state.players[i].angle + t * (new_state.players[i].angle - prev_state.players[i].angle);
+
+		// Don't interpolate if our position jump is too big - for example when teleporting player to the other side of the screen.
+
+		if ((new_state.players[i].position.x - prev_state.players[i].position.x) < 800 && (prev_state.players[i].position.x - new_state.players[i].position.x) > 800)
         world_state.players[i].position.x = prev_state.players[i].position.x + t * (new_state.players[i].position.x - prev_state.players[i].position.x);
+
+		if ((new_state.players[i].position.y - prev_state.players[i].position.y) < 600 && (prev_state.players[i].position.y - new_state.players[i].position.y) > 600 )
         world_state.players[i].position.y = prev_state.players[i].position.y + t * (new_state.players[i].position.y - prev_state.players[i].position.y);
     }
 }
