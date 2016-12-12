@@ -64,7 +64,6 @@ void receive_packets()
         {
         case ENET_EVENT_TYPE_CONNECT:
             enet_address_get_host_ip(&net_event.peer->address, buffer, sizeof(buffer));
-            printf("A new client connected from %s:%u\n", buffer, net_event.peer->address.port);
 
             uint8_t id = get_free_player(&world_state);
 
@@ -79,12 +78,14 @@ void receive_packets()
                 world_state.players[id].angle = (float)M_PI * 1.5f;
                 world_state.players[id].sequence = 0;
 
-                ENetPacket* packet = enet_packet_create(&id, sizeof(id), 0);
+                ENetPacket* packet = enet_packet_create(&id, sizeof(id), ENET_PACKET_FLAG_RELIABLE);
 
                 enet_peer_send(peers[id], 0, packet);
 
                 net_event.peer->data = malloc(sizeof(uint8_t));
                 *(uint8_t*)net_event.peer->data = id;
+
+                printf("Player %d connected from %s:%u\n", id, buffer, net_event.peer->address.port);
             }
 
             break;
@@ -109,6 +110,57 @@ void receive_packets()
             free(net_event.peer->data);
 
             break;
+        }
+    }
+}
+
+void check_bullet_collisions_to_borders(bullet_state_t* bullets, int count)
+{
+    for (int i = 0; i < count; i++)
+    {
+        if (bullets[i].position.x > WINDOW_WIDTH + BULLET_SIZE ||
+            bullets[i].position.x < -BULLET_SIZE ||
+            bullets[i].position.y > WINDOW_HEIGHT + BULLET_SIZE ||
+            bullets[i].position.y < -BULLET_SIZE)
+        {
+            bullets[i].alive = 0;
+
+            bullet_dead_t dead;
+            dead.id = i;
+            dead.type = PACKET_BULLET_REMOVE;
+
+            ENetPacket* packet = enet_packet_create(&dead, sizeof(dead), ENET_PACKET_FLAG_RELIABLE);
+            enet_host_broadcast(server, 1, packet);
+        }
+    }
+}
+
+void check_bullet_collisions_to_players(world_state_t* world, bullet_state_t* bullets, int count)
+{
+    SDL_Rect player;
+    SDL_Rect bullet;
+
+    for (int i = 0; i < count; i++)
+    {
+        for (int j = 0; j < MAX_PLAYERS; j++)
+        {
+            if (!is_player_alive(world, j) || j == bullets[i].owner)
+                continue;
+
+            player.x = (int)(world->players[j].position.x - PLAYER_SPR_SIZE / 2);
+            player.y = (int)(world->players[j].position.y - PLAYER_SPR_SIZE / 2);
+            player.w = PLAYER_SPR_SIZE;
+            player.h = PLAYER_SPR_SIZE;
+
+            bullet.x = (int)(bullets[i].position.x - BULLET_SIZE / 2);
+            bullet.y = (int)(bullets[i].position.y - BULLET_SIZE / 2);
+            bullet.w = BULLET_SIZE;
+            bullet.h = BULLET_SIZE;
+
+            if (SDL_HasIntersection(&bullet, &player))
+            {
+                
+            }
         }
     }
 }
@@ -150,7 +202,7 @@ void update()
             last_shots[inputs[i].id] = current_time;
 
             bullet_state_t* bullet = &bullets[bullet_count++];
-            bullet->type = PACKET_BULLET;
+            bullet->type = PACKET_BULLET_ADD;
             bullet->alive = 1;
             bullet->sequence = inputs[i].sequence;
             bullet->owner = inputs[i].id;
@@ -169,6 +221,10 @@ void update()
     input_count = 0;
 
     translate_world(&world_state);
+    translate_bullets(bullets, bullet_count);
+    check_bullet_collisions_to_borders(bullets, bullet_count);
+    check_bullet_collisions_to_players(&world_state, bullets, bullet_count);
+    clean_bullets(bullets, &bullet_count);
 }
 
 void send_packets()
