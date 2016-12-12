@@ -170,6 +170,13 @@ void check_bullet_collisions_to_players(world_state_t* world, bullet_state_t* bu
 				bullets[i].alive = 0;
 				world->players[j].alive = 0;
 				death_timer[j] = SDL_GetTicks() / 1000.0;
+
+                bullet_dead_t dead;
+                dead.id = i;
+                dead.type = PACKET_BULLET_REMOVE;
+
+                ENetPacket* packet = enet_packet_create(&dead, sizeof(dead), ENET_PACKET_FLAG_RELIABLE);
+                enet_host_broadcast(server, 1, packet);
             }
         }
     }
@@ -225,7 +232,7 @@ void update()
             }
         }
 
-        if (inputs[i].shoot && current_time - last_shots[inputs[i].id] > FIRE_INTERVAL)
+        if (inputs[i].shoot && current_time - last_shots[inputs[i].id] > FIRE_INTERVAL && bullet_count < MAX_BULLETS)
         {
             last_shots[inputs[i].id] = current_time;
 
