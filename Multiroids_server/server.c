@@ -153,10 +153,10 @@ void check_bullet_collisions_to_players(world_state_t* world, bullet_state_t* bu
             if (!is_player_connected(world, j) || j == bullets[i].owner || !world->players[j].alive)
                 continue;
 
-            player.x = (int)(world->players[j].position.x - PLAYER_SPR_SIZE / 2);
-            player.y = (int)(world->players[j].position.y - PLAYER_SPR_SIZE / 2);
-            player.w = PLAYER_SPR_SIZE;
-            player.h = PLAYER_SPR_SIZE;
+            player.x = (int)(world->players[j].position.x - PLAYER_SPR_SIZE);
+            player.y = (int)(world->players[j].position.y - PLAYER_SPR_SIZE);
+            player.w = PLAYER_SPR_SIZE * 2;
+            player.h = PLAYER_SPR_SIZE * 2;
 
             bullet.x = (int)(bullets[i].position.x - BULLET_SIZE / 2);
             bullet.y = (int)(bullets[i].position.y - BULLET_SIZE / 2);
@@ -195,8 +195,8 @@ void respawn_players(double current_time)
 			world_state.players[i].angle = (float)M_PI / 2;
 			world_state.players[i].velocity.x = 0;
 			world_state.players[i].velocity.y = 0;
-			world_state.players[i].position.x = (float)(rand() % (WINDOW_WIDTH - PLAYER_SPR_SIZE) + PLAYER_SPR_SIZE);
-			world_state.players[i].position.y = (float)(rand() % (WINDOW_HEIGHT - PLAYER_SPR_SIZE) + PLAYER_SPR_SIZE);
+			world_state.players[i].position.x = (float)(rand() % (WINDOW_WIDTH - PLAYER_SPR_SIZE * 2) + PLAYER_SPR_SIZE * 2);
+			world_state.players[i].position.y = (float)(rand() % (WINDOW_HEIGHT - PLAYER_SPR_SIZE * 2) + PLAYER_SPR_SIZE * 2);
 		}
 	}
 
@@ -245,8 +245,8 @@ void update()
 				bullet->alive = 1;
 				bullet->sequence = inputs[i].sequence;
 				bullet->owner = inputs[i].id;
-				bullet->position.x = player->position.x + cosf(player->angle) * PLAYER_SPR_SIZE;
-				bullet->position.y = player->position.y + sinf(player->angle) * PLAYER_SPR_SIZE;
+				bullet->position.x = player->position.x + cosf(player->angle) * PLAYER_SPR_SIZE * 1.5f;
+				bullet->position.y = player->position.y + sinf(player->angle) * PLAYER_SPR_SIZE * 1.5f;
 				bullet->velocity.x = cosf(player->angle) * BULLET_SPEED + (player->velocity.x / 2);
 				bullet->velocity.y = sinf(player->angle) * BULLET_SPEED + (player->velocity.y / 2);
 

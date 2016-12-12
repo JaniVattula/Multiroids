@@ -3,8 +3,8 @@
 
 #include <SDL.h>
 
-#define WINDOW_WIDTH 1440
-#define WINDOW_HEIGHT 900
+#define WINDOW_WIDTH 1280
+#define WINDOW_HEIGHT 720
 #define BUFFER_ZONE 20
 
 #define PLAYER_SPR_SIZE 20

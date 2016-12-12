@@ -355,9 +355,9 @@ int main(int argc, char* argv[])
             network_stuff();
             accumulator -= physics_step;
             interpolation += physics_step;
-        }
 
-        render();
+            render();
+        }
 	}
 
     enet_peer_disconnect(peer, 0);
