@@ -100,36 +100,6 @@ void clean_bullets(bullet_state_t* bullets, int* count)
     *count = new_count;
 }
 
-void check_bullet_collisions(world_state_t* world, bullet_state_t* bullets, int count)
-{
-    SDL_Rect player;
-    SDL_Rect bullet;
-
-    for (int i = 0; i < count; i++)
-    {
-        for (int j = 0; j < MAX_PLAYERS; j++)
-        {
-            if (!is_player_alive(world, j) || j == bullets[i].owner)
-                continue;
-
-            player.x = (int)(world->players[j].position.x - PLAYER_SPR_SIZE / 2);
-            player.y = (int)(world->players[j].position.y - PLAYER_SPR_SIZE / 2);
-            player.w = PLAYER_SPR_SIZE;
-            player.h = PLAYER_SPR_SIZE;
-
-            bullet.x = (int)(bullets[i].position.x - BULLET_SIZE / 2);
-            bullet.y = (int)(bullets[i].position.y - BULLET_SIZE / 2);
-            bullet.w = BULLET_SIZE;
-            bullet.h = BULLET_SIZE;
-
-            if (SDL_HasIntersection(&bullet, &player))
-            {
-                bullets[i].alive = 0;
-            }
-        }
-    }
-}
-
 const point_t player_sprite[PLAYER_SPR_POINTS] = {
     -PLAYER_SPR_SIZE, -PLAYER_SPR_SIZE,
      PLAYER_SPR_SIZE, 0.0f,

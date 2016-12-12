@@ -72,7 +72,6 @@ void connect_to_host(char* ip, int port)
 
 void init(char* ip, int port)
 {
-    printf("SIZE: %zd\n", sizeof(world_state));
     memset(&input, 0, sizeof(input));
     memset(&bullets, 0, sizeof(bullets));
 
@@ -228,7 +227,7 @@ void update()
     interpolate_world();
     translate_world(&world_state);
     translate_bullets(bullets, bullet_count);
-    check_bullet_collisions(&world_state, bullets, bullet_count);
+
     clean_bullets(bullets, &bullet_count);
 }
 
@@ -271,8 +270,11 @@ void network_stuff()
 
                 input_count = j;
                 break;
-            case PACKET_BULLET:
+            case PACKET_BULLET_ADD:
                 bullets[bullet_count++] = *(bullet_state_t*)net_event.packet->data;
+                break;
+            case PACKET_BULLET_REMOVE:
+                bullets[(*(bullet_dead_t*)net_event.packet->data).id].alive = 0;
                 break;
             }
 

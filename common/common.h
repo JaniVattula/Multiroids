@@ -10,7 +10,7 @@
 #define PLAYER_SPR_SIZE 16
 #define PLAYER_SPR_POINTS 5
 #define PLAYER_ACCELERATION 0.0675f
-#define PLAYER_MOVE_SPEED 3
+#define PLAYER_MOVE_SPEED 4
 #define PLAYER_TURN_SPEED 0.05f
 
 #define MAX_PLAYERS 8
@@ -24,7 +24,9 @@ enum PACKET_TYPE
 {
     PACKET_INPUT = 0,
     PACKET_WORLD,
-    PACKET_BULLET
+    PACKET_BULLET_ADD,
+    PACKET_PLAYER_HIT,
+    PACKET_BULLET_REMOVE,
 };
 
 extern const double physics_step;
@@ -46,6 +48,13 @@ typedef struct input_state_t
     uint8_t right : 1;
     uint8_t shoot : 1;
 } input_state_t;
+
+typedef struct bullet_dead_t
+{
+    uint8_t type;
+    uint32_t sequence;
+    uint8_t id;
+} bullet_dead_t;
 
 typedef struct bullet_state_t
 {
@@ -78,7 +87,6 @@ void render_world(SDL_Renderer* renderer, world_state_t* world);
 void translate_bullets(bullet_state_t* bullets, int count);
 void render_bullets(SDL_Renderer* renderer, bullet_state_t* bullets, int count);
 void clean_bullets(bullet_state_t* bullets, int* count);
-void check_bullet_collisions(world_state_t* world, bullet_state_t* bullets, int count);
 
 inline float to_rad(float deg)
 {
