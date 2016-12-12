@@ -232,6 +232,16 @@ void update()
     clean_bullets(bullets, &bullet_count);
 }
 
+void deinit()
+{
+	enet_host_destroy(client);
+	enet_deinitialize();
+
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(window);
+	SDL_Quit();
+}
+
 void network_stuff()
 {
     ENetEvent net_event;
@@ -256,7 +266,6 @@ void network_stuff()
                 world_state = new_state = *(world_state_t*)net_event.packet->data;
 
                 interpolation = 0.0;
-
                 int j = 0;
 
                 for (int i = 0; i < input_count; i++)
@@ -264,7 +273,6 @@ void network_stuff()
                     if (inputs[i].sequence > player->sequence)
                     {
                         inputs[j++] = input = inputs[i];
-
                         update();
                     }
                 }
@@ -283,6 +291,7 @@ void network_stuff()
 
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
+			running = 0;
             break;
         }
     }
@@ -298,16 +307,6 @@ void render()
 
     SDL_RenderPresent(renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-}
-
-void deinit()
-{
-    enet_host_destroy(client);
-    enet_deinitialize();
-
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
 }
 
 int main(int argc, char* argv[])
@@ -350,7 +349,6 @@ int main(int argc, char* argv[])
         {
             update();
 
-
             input.sequence++;
             inputs[input_count++] = input;
 
@@ -363,7 +361,6 @@ int main(int argc, char* argv[])
 	}
 
     enet_peer_disconnect(peer, 0);
-
     network_stuff();
 
     deinit();
