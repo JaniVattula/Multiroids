@@ -71,6 +71,7 @@ typedef struct player_state_t
 {
     uint32_t sequence;
 	uint8_t alive;
+	uint8_t score;
     point_t position;
     point_t velocity;
     float angle;

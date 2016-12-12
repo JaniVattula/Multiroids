@@ -171,6 +171,8 @@ void check_bullet_collisions_to_players(world_state_t* world, bullet_state_t* bu
 				world->players[j].alive = 0;
 				death_timer[j] = SDL_GetTicks() / 1000.0;
 
+				world->players[bullets[i].owner].score++;
+
                 bullet_dead_t dead;
                 dead.id = i;
                 dead.type = PACKET_BULLET_REMOVE;
@@ -204,52 +206,54 @@ void update()
 {   
     double current_time = SDL_GetTicks() / 1000.0;
 
-    for (int i = 0; i < input_count; i++)
-    {
-        player_state_t* player = &world_state.players[inputs[i].id];
+	for (int i = 0; i < input_count; i++)
+	{
+		player_state_t* player = &world_state.players[inputs[i].id];
 
-        if (inputs[i].right)
-        {
-            player->angle += PLAYER_TURN_SPEED;
-        }
+		if (player->alive)
+		{
+			if (inputs[i].right)
+			{
+				player->angle += PLAYER_TURN_SPEED;
+			}
 
-        if (inputs[i].left)
-        {
-            player->angle -= PLAYER_TURN_SPEED;
-        }
+			if (inputs[i].left)
+			{
+				player->angle -= PLAYER_TURN_SPEED;
+			}
 
-        if (inputs[i].thrust)
-        {
-            player->velocity.x += cosf(player->angle) * PLAYER_ACCELERATION;
-            player->velocity.y += sinf(player->angle) * PLAYER_ACCELERATION;
+			if (inputs[i].thrust)
+			{
+				player->velocity.x += cosf(player->angle) * PLAYER_ACCELERATION;
+				player->velocity.y += sinf(player->angle) * PLAYER_ACCELERATION;
 
-            float speed = sqrtf(powf(player->velocity.x, 2.0f) + powf(player->velocity.y, 2.0f));
+				float speed = sqrtf(powf(player->velocity.x, 2.0f) + powf(player->velocity.y, 2.0f));
 
-            if (speed > PLAYER_MOVE_SPEED)
-            {
-                player->velocity.x *= PLAYER_MOVE_SPEED / speed;
-                player->velocity.y *= PLAYER_MOVE_SPEED / speed;
-            }
-        }
+				if (speed > PLAYER_MOVE_SPEED)
+				{
+					player->velocity.x *= PLAYER_MOVE_SPEED / speed;
+					player->velocity.y *= PLAYER_MOVE_SPEED / speed;
+				}
+			}
 
-        if (inputs[i].shoot && current_time - last_shots[inputs[i].id] > FIRE_INTERVAL && bullet_count < MAX_BULLETS)
-        {
-            last_shots[inputs[i].id] = current_time;
+			if (inputs[i].shoot && current_time - last_shots[inputs[i].id] > FIRE_INTERVAL && bullet_count < MAX_BULLETS)
+			{
+				last_shots[inputs[i].id] = current_time;
 
-            bullet_state_t* bullet = &bullets[bullet_count++];
-            bullet->type = PACKET_BULLET_ADD;
-            bullet->alive = 1;
-            bullet->sequence = inputs[i].sequence;
-            bullet->owner = inputs[i].id;
-            bullet->position.x = player->position.x + cosf(player->angle) * PLAYER_SPR_SIZE;
-            bullet->position.y = player->position.y + sinf(player->angle) * PLAYER_SPR_SIZE;
-            bullet->velocity.x = cosf(player->angle) * BULLET_SPEED + (player->velocity.x / 2);
-            bullet->velocity.y = sinf(player->angle) * BULLET_SPEED + (player->velocity.y / 2);
+				bullet_state_t* bullet = &bullets[bullet_count++];
+				bullet->type = PACKET_BULLET_ADD;
+				bullet->alive = 1;
+				bullet->sequence = inputs[i].sequence;
+				bullet->owner = inputs[i].id;
+				bullet->position.x = player->position.x + cosf(player->angle) * PLAYER_SPR_SIZE;
+				bullet->position.y = player->position.y + sinf(player->angle) * PLAYER_SPR_SIZE;
+				bullet->velocity.x = cosf(player->angle) * BULLET_SPEED + (player->velocity.x / 2);
+				bullet->velocity.y = sinf(player->angle) * BULLET_SPEED + (player->velocity.y / 2);
 
-            ENetPacket* packet = enet_packet_create(bullet, sizeof(bullet_state_t), ENET_PACKET_FLAG_RELIABLE);
-            enet_host_broadcast(server, 1, packet);
-        }
-
+				ENetPacket* packet = enet_packet_create(bullet, sizeof(bullet_state_t), ENET_PACKET_FLAG_RELIABLE);
+				enet_host_broadcast(server, 1, packet);
+			}
+		}
         player->sequence = inputs[i].sequence;
     }
 

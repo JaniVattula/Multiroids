@@ -105,12 +105,10 @@ void init(char* ip, int port)
     connect_to_host(ip, port);
 
     char title[256];
-
     sprintf(title, "Multiroids: Player %d", input.id + 1);
+	SDL_SetWindowTitle(window, title);
 
     player = &world_state.players[input.id];
-
-    SDL_SetWindowTitle(window, title);
 }
 
 void poll_events()
@@ -198,31 +196,34 @@ void interpolate_world()
 
 void update()
 {
-    if (input.right)
-    {
-        player->angle += PLAYER_TURN_SPEED;
-    }
+	if (player->alive)
+	{
+		if (input.right)
+		{
+			player->angle += PLAYER_TURN_SPEED;
+		}
 
-    if (input.left)
-    {
-        player->angle -= PLAYER_TURN_SPEED;
-    }
+		if (input.left)
+		{
+			player->angle -= PLAYER_TURN_SPEED;
+		}
 
-    if (input.thrust)
-    {
-        player->velocity.x += cosf(player->angle) * PLAYER_ACCELERATION;
-        player->velocity.y += sinf(player->angle) * PLAYER_ACCELERATION;
+		if (input.thrust)
+		{
+			player->velocity.x += cosf(player->angle) * PLAYER_ACCELERATION;
+			player->velocity.y += sinf(player->angle) * PLAYER_ACCELERATION;
 
-        float speed = sqrtf(
-            powf(player->velocity.x, 2.0f) +
-            powf(player->velocity.y, 2.0f));
+			float speed = sqrtf(
+				powf(player->velocity.x, 2.0f) +
+				powf(player->velocity.y, 2.0f));
 
-        if (speed > PLAYER_MOVE_SPEED)
-        {
-            player->velocity.x *= PLAYER_MOVE_SPEED / speed;
-            player->velocity.y *= PLAYER_MOVE_SPEED / speed;
-        }
-    }
+			if (speed > PLAYER_MOVE_SPEED)
+			{
+				player->velocity.x *= PLAYER_MOVE_SPEED / speed;
+				player->velocity.y *= PLAYER_MOVE_SPEED / speed;
+			}
+		}
+	}
 
     interpolate_world();
     translate_world(&world_state);
