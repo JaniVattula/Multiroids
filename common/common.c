@@ -8,7 +8,7 @@ void translate_world(world_state_t* world)
 {
     for (int i = 0; i < MAX_PLAYERS; i++)
     {
-        if (!is_player_alive(world, i))
+        if (!is_player_connected(world, i))
             continue;
 
         world->players[i].position.x += world->players[i].velocity.x;
@@ -30,7 +30,7 @@ void render_world(SDL_Renderer* renderer, world_state_t* world)
 {
     for (int i = 0; i < MAX_PLAYERS; i++)
     {
-        if (!is_player_alive(world, i))
+        if (!is_player_connected(world, i) || !world->players[i].alive)
             continue;
 
         static SDL_Point points[PLAYER_SPR_POINTS];

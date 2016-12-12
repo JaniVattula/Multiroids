@@ -3,22 +3,23 @@
 
 #include <SDL.h>
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
+#define WINDOW_WIDTH 1440
+#define WINDOW_HEIGHT 900
 #define BUFFER_ZONE 20
 
-#define PLAYER_SPR_SIZE 16
+#define PLAYER_SPR_SIZE 20
 #define PLAYER_SPR_POINTS 5
-#define PLAYER_ACCELERATION 0.0675f
-#define PLAYER_MOVE_SPEED 4
-#define PLAYER_TURN_SPEED 0.05f
+#define PLAYER_ACCELERATION 0.10f
+#define PLAYER_MOVE_SPEED 6
+#define PLAYER_TURN_SPEED 0.08f
 
 #define MAX_PLAYERS 8
 #define MAX_BULLETS 256
-#define FIRE_INTERVAL 0.5
+#define FIRE_INTERVAL 0.4
+#define RESPAWN_RATE 3.0
 
-#define BULLET_SIZE 3
-#define BULLET_SPEED 5
+#define BULLET_SIZE 5
+#define BULLET_SPEED 8
 
 enum PACKET_TYPE
 {
@@ -69,6 +70,7 @@ typedef struct bullet_state_t
 typedef struct player_state_t
 {
     uint32_t sequence;
+	uint8_t alive;
     point_t position;
     point_t velocity;
     float angle;
@@ -79,7 +81,7 @@ typedef struct world_state_t
     uint8_t type;
     uint32_t sequence;
     player_state_t players[MAX_PLAYERS];
-    uint8_t alive;
+    uint8_t connected;
 } world_state_t;
 
 void translate_world(world_state_t* world);
@@ -98,29 +100,29 @@ inline float to_deg(float rad)
     return rad * 180.0f / (float)M_PI;
 }
 
-inline int is_player_alive(world_state_t* world, int player)
+inline int is_player_connected(world_state_t* world, int player)
 {
-    return world->alive & 1 << player;
+    return world->connected & 1 << player;
 }
 
-inline void set_player_alive(world_state_t* world, int player)
+inline void set_player_connected(world_state_t* world, int player)
 {
-    world->alive = world->alive | 1 << player;
+    world->connected = world->connected | 1 << player;
 }
 
 inline void set_player_free(world_state_t* world, int player)
 {
-    world->alive = world->alive & ~(1 << player);
+    world->connected = world->connected & ~(1 << player);
 }
 
 inline int get_free_player(world_state_t* world)
 {
     for (int i = 0; i < MAX_PLAYERS; i++)
     {
-        if (is_player_alive(world, i))
+        if (is_player_connected(world, i))
             continue;
 
-        set_player_alive(world, i);
+        set_player_connected(world, i);
 
         return i;
     }

@@ -181,7 +181,7 @@ void interpolate_world()
 
     for (int i = 0; i < MAX_PLAYERS; i++)
     {
-        if (i == input.id || !is_player_alive(&world_state, i))
+        if (i == input.id || !is_player_connected(&world_state, i))
             continue;
 
         world_state.players[i].angle = prev_state.players[i].angle + t * (new_state.players[i].angle - prev_state.players[i].angle);

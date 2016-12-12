@@ -1,5 +1,7 @@
 #include <SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <enet\enet.h>
 #include "common.h"
 
@@ -12,6 +14,7 @@ ENetPeer* peers[MAX_PLAYERS];
 char buffer[256];
 
 double last_shots[MAX_PLAYERS];
+double death_timer[MAX_PLAYERS];
 
 bullet_state_t bullets[MAX_BULLETS];
 input_state_t inputs[MAX_INPUTS];
@@ -51,6 +54,8 @@ void init()
 
     world_state.type = PACKET_WORLD;
     world_state.sequence = 0;
+
+	srand((unsigned int)time(NULL));
 }
 
 void receive_packets()
@@ -77,6 +82,7 @@ void receive_packets()
                 world_state.players[id].velocity.y = 0.0f;
                 world_state.players[id].angle = (float)M_PI * 1.5f;
                 world_state.players[id].sequence = 0;
+				world_state.players[id].alive = 1;
 
                 ENetPacket* packet = enet_packet_create(&id, sizeof(id), ENET_PACKET_FLAG_RELIABLE);
 
@@ -144,7 +150,7 @@ void check_bullet_collisions_to_players(world_state_t* world, bullet_state_t* bu
     {
         for (int j = 0; j < MAX_PLAYERS; j++)
         {
-            if (!is_player_alive(world, j) || j == bullets[i].owner)
+            if (!is_player_connected(world, j) || j == bullets[i].owner || !world->players[j].alive)
                 continue;
 
             player.x = (int)(world->players[j].position.x - PLAYER_SPR_SIZE / 2);
@@ -159,10 +165,32 @@ void check_bullet_collisions_to_players(world_state_t* world, bullet_state_t* bu
 
             if (SDL_HasIntersection(&bullet, &player))
             {
-                
+                // Kill player and intersecting bullet.
+
+				bullets[i].alive = 0;
+				world->players[j].alive = 0;
+				death_timer[j] = SDL_GetTicks() / 1000.0;
             }
         }
     }
+}
+
+void respawn_players(double current_time)
+{
+	for (int i = 0; i < MAX_PLAYERS; i++)
+	{
+		if (!world_state.players[i].alive && (current_time - death_timer[i]) > RESPAWN_RATE)
+		{
+			world_state.players[i].alive = 1;
+
+			world_state.players[i].angle = (float)M_PI / 2;
+			world_state.players[i].velocity.x = 0;
+			world_state.players[i].velocity.y = 0;
+			world_state.players[i].position.x = (float)(rand() % (WINDOW_WIDTH - PLAYER_SPR_SIZE) + PLAYER_SPR_SIZE);
+			world_state.players[i].position.y = (float)(rand() % (WINDOW_HEIGHT - PLAYER_SPR_SIZE) + PLAYER_SPR_SIZE);
+		}
+	}
+
 }
 
 void update()
@@ -208,8 +236,8 @@ void update()
             bullet->owner = inputs[i].id;
             bullet->position.x = player->position.x + cosf(player->angle) * PLAYER_SPR_SIZE;
             bullet->position.y = player->position.y + sinf(player->angle) * PLAYER_SPR_SIZE;
-            bullet->velocity.x = cosf(player->angle) * BULLET_SPEED;
-            bullet->velocity.y = sinf(player->angle) * BULLET_SPEED;
+            bullet->velocity.x = cosf(player->angle) * BULLET_SPEED + (player->velocity.x / 2);
+            bullet->velocity.y = sinf(player->angle) * BULLET_SPEED + (player->velocity.y / 2);
 
             ENetPacket* packet = enet_packet_create(bullet, sizeof(bullet_state_t), ENET_PACKET_FLAG_RELIABLE);
             enet_host_broadcast(server, 1, packet);
@@ -225,6 +253,7 @@ void update()
     check_bullet_collisions_to_borders(bullets, bullet_count);
     check_bullet_collisions_to_players(&world_state, bullets, bullet_count);
     clean_bullets(bullets, &bullet_count);
+	respawn_players(current_time);
 }
 
 void send_packets()
