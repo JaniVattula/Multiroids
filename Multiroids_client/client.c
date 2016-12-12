@@ -350,16 +350,15 @@ int main(int argc, char* argv[])
         {
             update();
 
-
             input.sequence++;
             inputs[input_count++] = input;
 
             network_stuff();
             accumulator -= physics_step;
             interpolation += physics_step;
-        }
 
-        render();
+            render();
+        }
 	}
 
     enet_peer_disconnect(peer, 0);
