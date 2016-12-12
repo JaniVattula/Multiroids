@@ -14,15 +14,15 @@ void translate_world(world_state_t* world)
         world->players[i].position.x += world->players[i].velocity.x;
         world->players[i].position.y += world->players[i].velocity.y;
 
-		if (world->players[i].position.x > WINDOW_WIDTH + 20)
-			world->players[i].position.x = -20;
-		else if (world->players[i].position.x < -20)
-			world->players[i].position.x = WINDOW_WIDTH + 20;
+		if (world->players[i].position.x > WINDOW_WIDTH + BUFFER_ZONE)
+			world->players[i].position.x = -BUFFER_ZONE;
+		else if (world->players[i].position.x < -BUFFER_ZONE)
+			world->players[i].position.x = WINDOW_WIDTH + BUFFER_ZONE;
 
-		if (world->players[i].position.y > WINDOW_HEIGHT + 20)
-			world->players[i].position.y = -20;
-		else if (world->players[i].position.y < -20)
-			world->players[i].position.y = WINDOW_HEIGHT + 20;
+		if (world->players[i].position.y > WINDOW_HEIGHT + BUFFER_ZONE)
+			world->players[i].position.y = -BUFFER_ZONE;
+		else if (world->players[i].position.y < -BUFFER_ZONE)
+			world->players[i].position.y = WINDOW_HEIGHT + BUFFER_ZONE;
     }
 }
 

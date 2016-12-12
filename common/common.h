@@ -5,6 +5,7 @@
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
+#define BUFFER_ZONE 20
 
 #define PLAYER_SPR_SIZE 16
 #define PLAYER_SPR_POINTS 5

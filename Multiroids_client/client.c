@@ -189,10 +189,10 @@ void interpolate_world()
 
 		// Don't interpolate if our position jump is too big - for example when teleporting player to the other side of the screen.
 
-		if ((new_state.players[i].position.x - prev_state.players[i].position.x) < 800 && (prev_state.players[i].position.x - new_state.players[i].position.x) > 800)
+		if ((new_state.players[i].position.x - prev_state.players[i].position.x) < WINDOW_HEIGHT && (prev_state.players[i].position.x - new_state.players[i].position.x) > WINDOW_HEIGHT)
         world_state.players[i].position.x = prev_state.players[i].position.x + t * (new_state.players[i].position.x - prev_state.players[i].position.x);
 
-		if ((new_state.players[i].position.y - prev_state.players[i].position.y) < 600 && (prev_state.players[i].position.y - new_state.players[i].position.y) > 600 )
+		if ((new_state.players[i].position.y - prev_state.players[i].position.y) < WINDOW_WIDTH && (prev_state.players[i].position.y - new_state.players[i].position.y) > WINDOW_WIDTH )
         world_state.players[i].position.y = prev_state.players[i].position.y + t * (new_state.players[i].position.y - prev_state.players[i].position.y);
     }
 }
