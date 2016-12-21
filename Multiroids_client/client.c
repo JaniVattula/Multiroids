@@ -1,4 +1,5 @@
 #include <SDL.h>
+#include <SDL_ttf.h>
 #include <stdio.h>
 #include <enet\enet.h>
 #include <math.h>
@@ -25,8 +26,32 @@ ENetPeer* peer = NULL;
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
+SDL_Rect rect;
+SDL_Texture* texture = NULL;
+TTF_Font* font = NULL;
 
 char buffer[256];
+
+void create_text(int x, int y, char* text, SDL_Texture **texture, SDL_Rect* rect)
+{
+	int text_width;
+	int text_height;
+
+	SDL_Surface* surface;
+	SDL_Color textColor = { 255, 255, 255, 0 };
+
+	surface = TTF_RenderText_Solid(font, text, textColor);
+	*texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+	text_width = surface->w;
+	text_height = surface->h;
+	SDL_FreeSurface(surface);
+
+	rect->x = x;
+	rect->y = y;
+	rect->w = text_width;
+	rect->h = text_height;
+}
 
 void connect_to_host(char* ip, int port)
 {
@@ -82,6 +107,15 @@ void init(char* ip, int port)
     }
 
     SDL_Init(SDL_INIT_VIDEO);
+	TTF_Init();
+
+	font = TTF_OpenFont("../assets/fonts/raidercrusader.ttf", 28);
+
+	if (font == NULL)
+	{
+		printf("Failed to open font.\n");
+		exit(EXIT_FAILURE);
+	}
 
     window = SDL_CreateWindow(
         "Multiroids", 
@@ -225,6 +259,9 @@ void update()
 		}
 	}
 
+	rect.x = (int)player->position.x;
+	rect.y = (int)player->position.y;
+
     interpolate_world();
     translate_world(&world_state);
     translate_bullets(bullets, bullet_count);
@@ -305,6 +342,8 @@ void render()
     render_world(renderer, &world_state);
     render_bullets(renderer, bullets, bullet_count);
 
+	SDL_RenderCopy(renderer, texture, NULL, &rect);
+
     SDL_RenderPresent(renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 }
@@ -331,6 +370,8 @@ int main(int argc, char* argv[])
     }
 
     init(ip, port);
+
+	create_text((int)player->position.x, (int)player->position.y, "You", &texture, &rect);
 
     double accumulator = 0.0;
     double current_time = 0.0;
