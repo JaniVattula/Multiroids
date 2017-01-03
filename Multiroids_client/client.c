@@ -266,6 +266,10 @@ void update()
     translate_world(&world_state);
     translate_bullets(bullets, bullet_count);
 
+	char score[64];
+	sprintf(score, "score: %d", player->score);
+	create_text((int)player->position.x, (int)player->position.y, score, &texture, &rect);
+
     clean_bullets(bullets, &bullet_count);
 }
 
@@ -371,7 +375,9 @@ int main(int argc, char* argv[])
 
     init(ip, port);
 
-	create_text((int)player->position.x, (int)player->position.y, "You", &texture, &rect);
+	char score[64];
+	sprintf(score, "score: %d", player->score);
+	create_text((int)player->position.x, (int)player->position.y, score, &texture, &rect);
 
     double accumulator = 0.0;
     double current_time = 0.0;

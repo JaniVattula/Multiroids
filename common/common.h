@@ -109,6 +109,7 @@ inline int is_player_connected(world_state_t* world, int player)
 inline void set_player_connected(world_state_t* world, int player)
 {
     world->connected = world->connected | 1 << player;
+	world->players[player].score = 0;
 }
 
 inline void set_player_free(world_state_t* world, int player)
