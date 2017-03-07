@@ -139,7 +139,7 @@ void init(char* ip, int port)
     connect_to_host(ip, port);
 
     char title[256];
-    sprintf(title, "Multiroids: Player %d", input.id + 1);
+    sprintf(title, "Multiroids: Player %d", input.id);
 	SDL_SetWindowTitle(window, title);
 
     player = &world_state.players[input.id];
@@ -173,6 +173,7 @@ void poll_events()
                 break;
             case SDLK_LCTRL:
             case SDLK_RCTRL:
+			case SDLK_SPACE:
                 input.shoot = 1;
                 break;
             case SDLK_ESCAPE:
@@ -234,12 +235,26 @@ void update()
 	{
 		if (input.right)
 		{
-			player->angle += PLAYER_TURN_SPEED;
+			if (input.thrust)
+			{
+				player->angle += PLAYER_TURN_SPEED_REDUCED;
+			}
+			else
+			{
+				player->angle += PLAYER_TURN_SPEED;
+			}
 		}
 
 		if (input.left)
 		{
-			player->angle -= PLAYER_TURN_SPEED;
+			if (input.thrust)
+			{
+				player->angle -= PLAYER_TURN_SPEED_REDUCED;
+			}
+			else
+			{
+				player->angle -= PLAYER_TURN_SPEED;
+			}
 		}
 
 		if (input.thrust)

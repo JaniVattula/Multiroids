@@ -214,12 +214,26 @@ void update()
 		{
 			if (inputs[i].right)
 			{
-				player->angle += PLAYER_TURN_SPEED;
+				if (inputs[i].thrust)
+				{
+					player->angle += PLAYER_TURN_SPEED_REDUCED;
+				}
+				else
+				{
+					player->angle += PLAYER_TURN_SPEED;
+				}
 			}
 
 			if (inputs[i].left)
 			{
-				player->angle -= PLAYER_TURN_SPEED;
+				if (inputs[i].thrust)
+				{
+					player->angle -= PLAYER_TURN_SPEED_REDUCED;
+				}
+				else
+				{
+					player->angle -= PLAYER_TURN_SPEED;
+				}
 			}
 
 			if (inputs[i].thrust)

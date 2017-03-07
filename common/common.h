@@ -9,9 +9,10 @@
 
 #define PLAYER_SPR_SIZE 20
 #define PLAYER_SPR_POINTS 5
-#define PLAYER_ACCELERATION 0.10f
+#define PLAYER_ACCELERATION 0.12f
 #define PLAYER_MOVE_SPEED 6
 #define PLAYER_TURN_SPEED 0.08f
+#define PLAYER_TURN_SPEED_REDUCED 0.06f
 
 #define MAX_PLAYERS 8
 #define MAX_BULLETS 256
@@ -119,7 +120,7 @@ inline void set_player_free(world_state_t* world, int player)
 
 inline int get_free_player(world_state_t* world)
 {
-    for (int i = 0; i < MAX_PLAYERS; i++)
+    for (int i = 1; i < MAX_PLAYERS + 1; i++)
     {
         if (is_player_connected(world, i))
             continue;
@@ -133,6 +134,6 @@ inline int get_free_player(world_state_t* world)
 }
 
 extern const point_t player_sprite[PLAYER_SPR_POINTS];
-extern const SDL_Color player_colors[MAX_PLAYERS];
+extern const SDL_Color player_colors[MAX_PLAYERS + 1];
 
 #endif

@@ -122,8 +122,9 @@ const point_t player_sprite[PLAYER_SPR_POINTS] = {
     -PLAYER_SPR_SIZE, -PLAYER_SPR_SIZE
 };
 
-const SDL_Color player_colors[MAX_PLAYERS] = {
-    255, 0,   0,   255,
+const SDL_Color player_colors[MAX_PLAYERS + 1] = {
+    255, 255, 255, 255,
+	255, 0,   0,   255,
     0,   255, 0,   255,
     0,   0,   255, 255,
     255, 0,   255, 255,
